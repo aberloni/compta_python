@@ -13,7 +13,7 @@ print("done importing")
 
 import exporter;
 
-projects = ["tinies", "unfortune"]
+projects = ["tinies", "unfortune", "makina"]
 
 for p in projects:
     

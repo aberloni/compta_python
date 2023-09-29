@@ -5,18 +5,24 @@ class Bill:
     
     verbose = False
 
-    def __init__(self, project, data):
+    def __init__(self, project, uid, data):
         
         # [UID=>START,END]
         self.project = project
 
-        data = data[1:-1] # remove []
+        # data = data[1:-1] # remove []
 
-        _split = data.split("=>")
-        self.uid = _split[0] # 2023-09-XX
+        self.uid = uid # 2023-09-XX
 
-        _dtSplit = _split[1]
-        _dtSplit = _dtSplit.split(",")
+        # forfait is | after dates
+        self.forfait = None
+
+        if "|" in data:
+            splitted = data.split("|")
+            data = splitted[0]
+            self.forfait = int(splitted[1])
+
+        _dtSplit = data.split(",")
 
         # real datetime, not strings
         self.start = datetime.strptime(_dtSplit[0], "%Y-%m-%d")
@@ -55,6 +61,9 @@ class Bill:
 
         return self.id+"=>"+_start+","+_end
     
+    def isForfait(self):
+        return self.forfait != None
+
     def getLabelDate(self):
         import calendar
         
@@ -67,7 +76,10 @@ class Bill:
         return sMonth+" | "+eMonth
     
     def countDays(self, Ym = None):
-
+        
+        if self.isForfait():
+            return self.forfait
+        
         output = 0
         for t in self.tasks:
             

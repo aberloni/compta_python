@@ -18,23 +18,6 @@ class Project:
         
         pass
     
-    """
-    bills:[2023-09=>2023-08-01,2023-09-31]
-    bills:[2023-09=>2023-08-01,2023-09-31];[2023-09=>2023-08-01,2023-09-31]
-    """
-    def getBillSignatures(self):
-
-        _blob = self.assoc.filterKey("bills")
-        
-        if _blob != None:
-            if _blob.find(";") >= 0:
-                _blob = _blob.split(";")
-            else:
-                _blob = []
-                _blob.append(_blob)
-
-        return _blob
-
     def dump(self):
 
         print("=== dump ===")
@@ -65,16 +48,13 @@ class Project:
     def generateBills(self):
         
         self.bills = []
-        signatures = self.getBillSignatures()
-        if signatures != None:
-            for s in signatures:
-                self.bills.append(Bill(self, s))
-            
-            #print(self.uid+" has bills x", len(self.bills))
+        
+        assocs = database.Assoc("bills_"+self.uid)
 
-    """
-    date must be Y-m-d
-    """
+        for e in assocs.entries:
+            self.bills.append(Bill(self, e.key, e.value))
+        
+
     def getBill(self, dateStr):
 
         date = datetime.strptime(dateStr, "%Y-%m-%d")
