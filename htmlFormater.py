@@ -7,6 +7,10 @@
 from datetime import datetime
 import calendar
 
+import configs
+
+import database;
+
 def wrapAssoc(id, label, value, wrapClass = ""):
     
     output = "<div id=\""+id+"\""
@@ -34,15 +38,13 @@ def wrapSection(section, content):
 
 def generateHeader(project):
     
-    import generate
-
     if project == None:
         print("no project ?")
         return
 
     output = "<div id=\"header\">"
 
-    autoe = generate.Assoc("autoe")
+    autoe = database.Assoc("autoe")
 
     # header : name & job
     output += "<div id=\"job\">"
@@ -84,8 +86,7 @@ def generateBill(project, bill):
 
     output = "<div id=\"bill\">"
     
-    import generate
-    assoc = generate.Assoc("statics")
+    assoc = database.Assoc("statics")
 
     output += "<div id=\"dispense\">"+assoc.filterKey("dispense")+"</div>"
 
@@ -110,12 +111,12 @@ def generateBill(project, bill):
     if len(months) <= 0:
         exit("need month")
     
-    print("tasks months x", len(months))
+    #print("tasks months x", len(months))
 
     for m in months:
         
         # YYYY-M (no leading 0)
-        print("html:month:"+m)
+        #print("html:month:"+m)
 
         cnt = bill.countDays(m)
         ht = bill.getHT(m)
@@ -123,8 +124,6 @@ def generateBill(project, bill):
         dt = datetime.strptime(m, "%Y-%m")
         year = str(dt.year)
         month = str(dt.month)
-
-        print(year+" "+month)
 
         htmlMonth = calendar.month_abbr[int(month)]
         
@@ -158,9 +157,7 @@ def generateBill(project, bill):
 def generateRib():
     output = ""
 
-    import generate;
-
-    rib = generate.Assoc("rib")
+    rib = database.Assoc("rib")
 
     output += "<hr/>"
     output += "<div id=\"rib\">"
@@ -178,8 +175,7 @@ def generateRib():
 def generateContact():
     output = ""
 
-    import generate
-    autoe = generate.Assoc("autoe")
+    autoe = database.Assoc("autoe")
 
     output += "<div id=\"contact\">"
     
@@ -227,8 +223,6 @@ def generateHtml(project, bill, exportFileName):
 
     # saving
     html = wrapSection("html", html)
-
-    import configs
 
     f = open(configs.pathExport + exportFileName + ".html", "w")
     f.write(html)

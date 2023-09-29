@@ -10,3 +10,9 @@ pathExport = "exports/"
 
 # testing purpose
 htmlExportDefault = "billing" #.html
+
+openDumpFolder = True
+openHtmlFile = False
+openDumpFile = False
+
+clearExportFolder = False # not implem
