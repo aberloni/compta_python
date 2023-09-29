@@ -12,6 +12,7 @@
 
 body
 {
+    font-size:30px;
     font-family: "Arial";
     background-color: var(--bgBackground);
     color: var(--fcBackground);
@@ -42,9 +43,15 @@ body
     clear:both
 }
 
+hr
+{
+    height: 10px;
+    background-color: var(--bgInvert);
+}
+
 #canvas
 {
-    width:1000px;
+    width:1300px;
     margin:auto;
     text-align: left;
 }
@@ -123,7 +130,13 @@ body
 #client-title
 {
     font-size: 1.5em;
+    font-weight: bold;
+}
 
+#client-name, #client-address
+{
+    margin-top:1%;
+    margin-left:1%;
 }
 
 /* BILLING */
@@ -135,16 +148,17 @@ body
 
 #dispense
 {
+    font-size:0.8em;
     margin:0% 20%;
     font-weight: bold;
+    text-align: center;
 }
 
 #bill-header
 {
-    margin:0% 20%;
-    margin-top:50px;
+    margin:50px 20%;
+    
     font-weight: bold;
-    text-transform: uppercase;
     font-size: 2em;
 }
 
@@ -153,17 +167,176 @@ body
     padding-right: 10%;
 }
 
+#bill-object
+{
+    margin:0% 20%;
+    margin-bottom:25px;
+}
+
+#bill-object-label
+{
+    font-size:1.1em;
+    margin-right:50px;
+}
+
+#bill-object-label-dec
+{
+    margin-right:50px;
+}
+
+#bill-object-projectName
+{
+    font-size:1.1em;
+    font-weight: bold;
+}
+
+/* TASKS */
+
+#tasks
+{
+    margin:0% 5%;
+    border-style:solid;
+}
+
+#tasks-header
+{
+    border-bottom-style: solid;
+    font-weight: bold;
+    width: 100%;
+}
+
+#tasks span
+{
+    display:inline-block;
+    padding:5px;
+    text-align: center;
+}
+
+#tasks .task-date
+{
+    min-width:25%;
+}
+
+#tasks .task-designation
+{
+    min-width: 55%;
+}
+
+#tasks .task-price
+{
+    min-width: 15%;
+}
+
+#tasks-lines
+{
+    margin:10px 0px;
+    font-size: 0.8em;
+}
+
+/* TOTAL */
+
+#bill-total
+{
+    margin:3% 0%;
+    margin-left:60%;
+}
+
+#bill-total span
+{
+    display: inline-block;
+}
+
+#bill-total .assocLabel
+{
+    text-align: right;
+    margin-right:20px;
+    width:40%;
+}
+#bill-total .assocValue
+{
+    width:40%;
+}
+
+#taux
+{
+    color:var(--fcInvert);
+    font-size:0.5em;
+}
+
+#total
+{
+    margin-top:10px;
+    font-weight: bold;
+}
+
+/* RIB */
+
+#rib
+{
+    margin:3% 10%;
+}
+
+#rib span
+{
+    vertical-align: text-top;
+    display:inline-block;
+
+}
+
+#titulaire
+{
+    height: 50px;
+}
+
+#domicile
+{
+    height:70px;
+}
+
+#refs
+{
+    height:70px;
+}
+
+#rib .assocLabel
+{
+    width:20%;
+    text-align: right;
+    margin-right:30px;
+}
+
+#rib .assocValue
+{
+    width:60%;
+}
+
 /* CONTACT */
+
+
 
 #contact
 {
     background-color: var(--bgInvert);
+    color:var(--fcInvert);
     font-size:1.1em;
+    padding:25px 10%;
 }
 
 #email
 {
     font-size:1.1em;
+}
+
+#contact .assocLabel
+{
+    text-align: right;
+    margin-right:30px;
+    width:20%;
+}
+
+#email-label
+{
+    margin-right:10%;
 }
 
 #contact div

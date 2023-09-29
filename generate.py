@@ -155,14 +155,13 @@ class Project:
         _blob = self.assoc.filterKey("bills")
         
         if _blob != None:
-            if _blob.find(";") < 0:
+            if _blob.find(";") >= 0:
                 _blob = _blob.split(";")
             else:
                 _blob = []
                 _blob.append(_blob)
 
         return _blob
-
 
     def dump(self):
 
@@ -199,18 +198,42 @@ class Project:
                 self.bills.append(Bill(self, s))
             print(self.uid+" has bills x", len(self.bills))
 
-
+    """
+    date must be Y-m-d
+    """
     def getBill(self, dateStr):
+
+        date = datetime.strptime(dateStr, "%Y-%m-%d")
 
         # _dt = datetime.strptime(date, "%Y-%m")
 
         for b in self.bills:
-            if b.id == dateStr:
+            if b.isSameWeek(date):
                 return b
         
         print("bill:"+dateStr+" not found")
         
         return None
+
+    def getBills(self):
+        return self.bills
+
+    def getWeekBills(self, date):
+        output = []
+
+        #week = datetime.strptime(date, "%Y-%m-%d")
+        #week = week.strftime("%W")
+
+        for b in self.bills:
+            if b.isSameWeek(date):
+                output.append(b)
+        
+        print(self.uid+" ? "+str(date)+" , found bills x"+str(len(output)))
+
+        return output 
+    
+    def getTaux(self):
+        return int(self.assoc.filterKey("taux"))
 
 class Bill:
     def __init__(self, project, data):
@@ -221,13 +244,12 @@ class Bill:
         data = data[1:-1] # remove []
 
         _split = data.split("=>")
-        self.id = _split[0]
+        self.uid = _split[0] # 2023-09-XX
 
         _dtSplit = _split[1]
         _dtSplit = _dtSplit.split(",")
 
-        print(data)
-        print(_dtSplit)
+        print(repr(data))
 
         # real datetime, not strings
         self.start = datetime.strptime(_dtSplit[0], "%Y-%m-%d")
@@ -238,8 +260,17 @@ class Bill:
             if t.date > self.start and t.date < self.end:
                 self.tasks.append(t)
 
-        print("bill "+self.id+" tasks x ", len(self.tasks))
+        print("bill "+self.uid+" tasks x ", len(self.tasks))
 
+    def isSameWeek(self, dt):
+        # input = datetime.strftime(str(y)+"-"+str(m), "%Y-%m")
+        # print(self.uid)
+        _dt = datetime.strptime(self.uid, "%Y-%m-%d")
+        _week = _dt.strftime("%W")
+
+        week = dt.strftime("%W")
+        return _week == week
+        
     def stringify(self):
         
         _start = self.start.strftime("%Y-%m-%d")
@@ -251,18 +282,83 @@ class Bill:
         import calendar
         
         sMonth = calendar.month_abbr[int(self.start.strftime("%m"))]
-        sMonth += self.start.strftime("%Y")
+        sMonth += " "+self.start.strftime("%Y")
 
         eMonth = calendar.month_abbr[int(self.end.strftime("%m"))]
-        eMonth += self.end.strftime("%Y")
+        eMonth += " "+self.end.strftime("%Y")
 
-        return sMonth+" à "+eMonth
+        return sMonth+" | "+eMonth
     
     def countDays(self):
         output = 0
         for t in self.tasks:
             output += t.len
         return output
+    
+    def getHT(self):
+        return self.countDays() * self.project.getTaux()
+
+    def getTVA(self):
+        return float(self.project.assoc.filterKey("tva"))
+    
+    def getTvaTotal(self):
+        return self.getTVA() * self.getHT()
+
+    def getTTC(self):
+        return self.getHT() + self.getTvaTotal()
+    
+    def dump(self):
+        output = self.project.name
+
+        output += "\n\nuid : "+self.uid
+
+        output += "\n\nproject tasks x"+str(len(self.project.tasks))
+
+        output += "\n\nbill tasks x"+str(len(self.tasks))
+        for t in self.tasks:    
+            output += "\n  "+t.stringify()
+        
+        output += "\n\nMontant:"
+        output += "\n  HT : "+str(self.getHT())
+        output += "\n  TTC : "+str(self.getTTC())
+
+        return output
+    
+    def getBillFullUid(self):
+        
+        dt = datetime.strptime(self.uid, "%Y-%m-%d")
+        bills = Database.instance.getWeekBills(dt)
+
+        print("now found bills x", len(bills))
+
+        inc = -1
+
+        print("searching for local bill : "+self.uid)
+
+        for i in range(0,len(bills)):
+            print("  "+bills[i].uid)
+            if bills[i].uid == self.uid:
+                inc = i
+
+        if inc < 0:
+            return None
+
+        print(inc)
+
+        # must inc because first is index 0
+        inc += 1
+
+        if inc < 10:
+            inc = "0"+str(inc)
+        else:
+            inc = str(inc)
+        
+        week = dt.strftime("%W")
+
+        # to Y-m
+        trunc = self.uid.split("-")
+        trunc = trunc[0]+"-"+trunc[1]
+        return trunc + "_s"+week+"-"+inc
 
     
 class Task:
@@ -390,4 +486,21 @@ class Database:
                 output.append(f)
         
         return output
+
+    def getWeekBills(self, dt):
+        
+        bills = []
+        for p in self.projects:
+            _bills = p.getWeekBills(dt)
+            if len(_bills) > 0:
+                for b in _bills:
+                    bills.append(b)
+        
+        return bills
+
+    def countWeekBills(self, dt):
+        bills = self.getWeekBills(dt)
+        return len(bills)
+
+
 

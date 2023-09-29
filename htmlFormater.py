@@ -13,8 +13,8 @@ def wrapAssoc(id, label, value, wrapClass = ""):
     
     output += ">"
     
-    output += "<span id=\""+id+"-label\">"+label+"</span>"
-    output += "<span id=\""+id+"-value\">"+str(value)+"</span>"
+    output += "<span id=\""+id+"-label\" class=\"assocLabel\">"+label+"</span>"
+    output += "<span id=\""+id+"-value\" class=\"assocValue\">"+str(value)+"</span>"
     output += "</div>"
 
     return output
@@ -51,8 +51,8 @@ def generateHeader(project):
     output += "<div id=\"infos\">"
 
     output += "<div id=\"infos-impots\" class=\"float\">"
-    output += "<div class=\"bold\">SIREN "+autoe.filterKey("siren")+"</div>"
-    output += "<div class=\"bold\">URSSAF"+autoe.filterKey("siren")+"</div>"
+    output += "<div class=\"bold\">SIREN  "+autoe.filterKey("siren")+"</div>"
+    output += "<div class=\"bold\">URSSAF "+autoe.filterKey("urssaf")+"</div>"
     output += "</div>"
     
     output += "<div id=\"infos-adresse-wrapper\" class=\"float\">"
@@ -73,8 +73,6 @@ def generateHeader(project):
     output += "<div id=\"client-address\">"+client.assoc.filterHtmlValue("address")+"</div>"
     output += "</div>"
     
-    output += "<hr/>"
-
     output += "</div>" # /header
 
     return output
@@ -88,7 +86,7 @@ def generateBill(project, bill):
 
     output += "<div id=\"dispense\">"+assoc.filterKey("dispense")+"</div>"
 
-    output += wrapAssoc("bill-header", "FACTURE", bill.id)
+    output += wrapAssoc("bill-header", "FACTURE", bill.getBillFullUid())
 
     output += "<div id=\"bill-object\">"
     output += "<span id=\"bill-object-label\">OBJET</span>"
@@ -105,15 +103,28 @@ def generateBill(project, bill):
     output += "</div>"
 
     cnt = bill.countDays()
-    price = cnt * int(project.assoc.filterKey("taux"))
+    ht = bill.getHT()
 
     output += "<div id=\"tasks-lines\">"
     output += "<span class=\"task-date\">"+bill.getLabelDate()+"</span>"
-    output += "<span class=\"task-designation\">Developpement de fonctionnlitées : "+str(cnt)+" j</span>"
-    output += "<span class=\"task-price\">"+str(price)+"€ HT</span>"
+    output += "<span class=\"task-designation\">Developpement de fonctionnalitées : "+str(cnt)+" j</span>"
+    output += "<span class=\"task-price\">"+str(ht)+"€ HT</span>"
     output += "</div>"
+    
+    output += "</div>" # /tasks
 
+    tva = bill.getTVA()
+    perc = str(tva * 100)+"%"
 
+    absTva = bill.getTvaTotal()
+    ttc = bill.getTTC()
+    
+
+    output += "<div id=\"bill-total\">"
+    output += wrapAssoc("taux", "taux", str(project.getTaux())+" € HT")
+    output += wrapAssoc("totalHT", "Total HT", str(ht)+" € HT")
+    output += wrapAssoc("tva","TVA ("+perc+")", str(absTva)+" €")
+    output += wrapAssoc("total","Total à régler", str(ttc)+" € TTC")
     output += "</div>"
 
     output += "</div>" # /bill
@@ -131,7 +142,7 @@ def generateRib():
     output += "<div id=\"rib\">"
     
     output += wrapAssoc("titulaire", "Titulaire", rib.filterKey("titulaire"))
-    output += wrapAssoc("domicile", "Domiciliation", rib.filterKey("domicile"))
+    output += wrapAssoc("domicile", "Domiciliation", rib.filterHtmlValue("domiciliation"))
     output += wrapAssoc("refs", "References bancaires", rib.filterKey("refs"))
     output += wrapAssoc("iban", "IBAN", rib.filterKey("iban"))
     output += wrapAssoc("bic", "BIC SWIFT", rib.filterKey("bic"))
@@ -148,35 +159,29 @@ def generateContact():
 
     output += "<div id=\"contact\">"
     
-    output += wrapAssoc("email", "Email", autoe.filterKey("email"), "float")
-    output += wrapAssoc("phone", "Mobile", autoe.filterKey("phone"), "float")
-    output += "<div class=\"clear\"></div>"
-
+    output += wrapAssoc("email", "Email", autoe.filterKey("email"))
+    output += wrapAssoc("phone", "Mobile", autoe.filterKey("phone"))
+    
     output += "</div>"
 
     return output
 
 
-
-def generateHtml(fileName, project, billDateStr):
+def generateHtml(project, bill, exportFileName):
 
     print("---HTML GENERATOR---")
     
     if project == None:
         print("no project ?")
         return
-
-    project.dump()
-
-    bill = project.getBill(billDateStr)
-
+    
     html = ""
 
     # HEAD 
     
     head = ""
-    head += "<title>"+bill.id+"</title>"
-    head += "<link rel=\"stylesheet\" type=\"text/css\" href=\"css.css\" />"
+    head += "<title>"+exportFileName+"</title>"
+    head += "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css.css\" />"
     # head += "<meta charset=\"UTF-8\" />"
 
     # ...
@@ -201,9 +206,8 @@ def generateHtml(fileName, project, billDateStr):
 
     import configs
 
-    fn = fileName + ".html"
-    f = open(configs.pathExport+fn, "w")
+    f = open(configs.pathExport + exportFileName + ".html", "w")
     f.write(html)
     f.close()
 
-    print("generated : "+fn)
+    print("generated HTML : "+exportFileName)

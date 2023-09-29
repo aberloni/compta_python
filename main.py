@@ -7,20 +7,17 @@ locale.setlocale(locale.LC_ALL, 'fr_FR')
 import generate
 database = generate.Database()
 
-project = database.getProject("Tinies")
-
-"""
-if project == None:
-    print("can't dump")
-else:
-    project.dump()
-"""
-
 print("done importing")
 
-import htmlFormater
-import configs
+project = database.getProject("Tinies")
 
-htmlFormater.generateHtml(configs.htmlExportDefault, project, "2023-09")
+if project == None:
+    print("no project ?")
+    exit()
+    pass
 
-print("done")
+# EXPORT
+
+import exporter;
+
+exporter.exportBills(project)

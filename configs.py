@@ -3,10 +3,10 @@
 dbExtension = ".compta"
 
 # path to your own database
-pathDatabase = "./database/"
+pathDatabase = "database/"
 
 # where to export bills
-pathExport = "./exports/"
+pathExport = "exports/"
 
 # testing purpose
 htmlExportDefault = "billing" #.html
