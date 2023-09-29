@@ -289,14 +289,20 @@ class Bill:
 
         return sMonth+" | "+eMonth
     
-    def countDays(self):
+    def countDays(self, Ym = None):
+
         output = 0
         for t in self.tasks:
+            
+            if Ym != None:
+                if not t.isMonth(Ym):
+                    continue
+
             output += t.len
         return output
     
-    def getHT(self):
-        return self.countDays() * self.project.getTaux()
+    def getHT(self, Ym = None):
+        return self.countDays(Ym) * self.project.getTaux()
 
     def getTVA(self):
         return float(self.project.assoc.filterKey("tva"))
@@ -360,6 +366,40 @@ class Bill:
         trunc = trunc[0]+"-"+trunc[1]
         return trunc + "_s"+week+"-"+inc
 
+    def getTimespanMonths(self):
+
+        cy = int(self.start.strftime("%Y"))
+        ey = int(self.end.strftime("%Y"))
+        cm = int(self.start.strftime("%m"))
+        em = int(self.end.strftime("%m"))
+
+        print("starts @ "+str(cy)+"-"+str(cm))
+
+        months = []
+
+        safe = 999
+        while cy <= ey and safe > 0:
+            maxMonth = 12
+            
+            if cy == ey:
+                maxMonth = em
+            
+            while cm <= maxMonth:
+                output = str(cy)+"-"+str(cm)
+                months.append(output)
+                cm += 1
+                safe -= 1
+            
+            cy += 1
+            cm = 1
+
+            safe -= 1
+
+        if safe <= 0:
+            print("error:safe")
+        
+        return months
+    
     
 class Task:
     def __init__(self, assoc):
@@ -407,6 +447,23 @@ class Task:
     def stringify(self):
         _date = self.date.strftime("%Y-%m-%d")
         return "date:"+_date+" , len:"+str(self.len)
+
+    # YYYY-mm
+    def isMonth(self, strYm):
+        
+        ym = datetime.strptime(strYm, "%Y-%m")
+        #_ym = self.date.strftime("%Y-%m")
+
+        # print(str(ym)+" VS "+str(self.date))
+
+        if ym.year != self.date.year:
+            return False
+        
+        if ym.month != self.date.month:
+            return False
+        
+        # print("ok !")
+        return True
 
 class Database:
     def __init__(self):

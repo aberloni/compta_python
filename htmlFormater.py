@@ -4,6 +4,9 @@
 
 # pdfkit.from_file()
 
+from datetime import datetime
+import calendar
+
 def wrapAssoc(id, label, value, wrapClass = ""):
     
     output = "<div id=\""+id+"\""
@@ -102,23 +105,44 @@ def generateBill(project, bill):
     output += "<span class=\"task-price\">Prix</span>"
     output += "</div>"
 
-    cnt = bill.countDays()
-    ht = bill.getHT()
-
-    output += "<div id=\"tasks-lines\">"
-    output += "<span class=\"task-date\">"+bill.getLabelDate()+"</span>"
-    output += "<span class=\"task-designation\">Developpement de fonctionnalitées : "+str(cnt)+" j</span>"
-    output += "<span class=\"task-price\">"+str(ht)+"€ HT</span>"
-    output += "</div>"
+    months = bill.getTimespanMonths()
     
+    if len(months) <= 0:
+        exit("need month")
+    
+    print("tasks months x", len(months))
+
+    for m in months:
+        
+        # YYYY-M (no leading 0)
+        print("html:month:"+m)
+
+        cnt = bill.countDays(m)
+        ht = bill.getHT(m)
+
+        dt = datetime.strptime(m, "%Y-%m")
+        year = str(dt.year)
+        month = str(dt.month)
+
+        print(year+" "+month)
+
+        htmlMonth = calendar.month_abbr[int(month)]
+        
+        output += "<div id=\"tasks-lines\">"
+        output += "<span class=\"task-date\">"+htmlMonth+" "+year+"</span>"
+        output += "<span class=\"task-designation\">Developpement de fonctionnalitées : "+str(cnt)+" j</span>"
+        output += "<span class=\"task-price\">"+str(ht)+"€ HT</span>"
+        output += "</div>"
+        
     output += "</div>" # /tasks
 
+    cnt = bill.countDays()
+    ht = bill.getHT()
     tva = bill.getTVA()
     perc = str(tva * 100)+"%"
 
     absTva = bill.getTvaTotal()
     ttc = bill.getTTC()
-    
 
     output += "<div id=\"bill-total\">"
     output += wrapAssoc("taux", "taux", str(project.getTaux())+" € HT")
