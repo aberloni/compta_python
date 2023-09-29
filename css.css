@@ -1,0 +1,172 @@
+:root
+{
+    --bgBackground:#FFF;
+    --fcBackground:#000;
+
+    --bgInvert:#111;
+    --fcInvert:#FFF;
+
+    --bgShade:#333;
+    --fcShade:#FFF;
+}
+
+body
+{
+    font-family: "Arial";
+    background-color: var(--bgBackground);
+    color: var(--fcBackground);
+    margin:0;
+    padding:0;
+    text-align: center;
+}
+
+.vCenter
+{
+    position: relative;
+    top: 50%;
+    transform: translate(0, -50%);
+}
+
+.float
+{
+    float:left;
+}
+
+.bold
+{
+    font-weight: bold;
+}
+
+.clear
+{
+    clear:both
+}
+
+#canvas
+{
+    width:1000px;
+    margin:auto;
+    text-align: left;
+}
+
+/* HEADER */
+
+#header
+{
+    width:100%;
+    background-color: var(--bgBackground);
+}
+
+#job span
+{
+    display: inline-block;
+    width:calc(50% - 4%);
+    margin-left:4%;
+}
+
+#job
+{
+    background-color: var(--bgInvert);
+    color: var(--fcInvert);
+    font-size: 1em;
+    font-weight: bold;
+    height: 75px;
+}
+
+#job-personal-name
+{
+    font-size:1.2em;
+    
+}
+
+#job-name
+{
+    font-size:1.1em;
+}
+
+/* INFOS */
+
+#infos
+{
+    padding:10px 20px;
+}
+
+#infos div
+{
+    padding:5px;
+}
+
+#infos-impots
+{
+    width:40%
+}
+
+#infos-adresse-wrapper
+{
+    width:50%
+}
+
+#infos-adresse
+{
+    width:20%;
+}
+
+/* CLIENT */
+
+#client
+{
+    background-color: var(--bgShade);
+    color: var(--fcShade);
+    padding:20px;
+}
+
+#client-title
+{
+    font-size: 1.5em;
+
+}
+
+/* BILLING */
+
+#bill
+{
+    margin-top:50px;
+}
+
+#dispense
+{
+    margin:0% 20%;
+    font-weight: bold;
+}
+
+#bill-header
+{
+    margin:0% 20%;
+    margin-top:50px;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 2em;
+}
+
+#bill-header-label
+{
+    padding-right: 10%;
+}
+
+/* CONTACT */
+
+#contact
+{
+    background-color: var(--bgInvert);
+    font-size:1.1em;
+}
+
+#email
+{
+    font-size:1.1em;
+}
+
+#contact div
+{
+    width:50%;
+}
