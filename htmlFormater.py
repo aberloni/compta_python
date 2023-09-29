@@ -82,6 +82,15 @@ def generateHeader(project):
 
     return output
 
+def generateTasks(date, days, ht):
+    
+    output = "<div id=\"tasks-lines\">"
+    output += "<span class=\"task-date\">"+date+"</span>"
+    output += "<span class=\"task-designation\">Developpement de fonctionnalitées : "+str(days)+" j</span>"
+    output += "<span class=\"task-price\">"+str(ht)+"€ HT</span>"
+    output += "</div>"
+    return output
+
 def generateBill(project, bill):
 
     output = "<div id=\"bill\">"
@@ -106,33 +115,40 @@ def generateBill(project, bill):
     output += "<span class=\"task-price\">Prix</span>"
     output += "</div>"
 
-    months = bill.getTimespanMonths()
+    if bill.isForfait():
+        
     
-    if len(months) <= 0:
-        exit("need month")
-    
-    #print("tasks months x", len(months))
+        cnt = bill.countDays()
+        ht = bill.getHT()
+        date = bill.getLabelDate()
 
-    for m in months:
+        output += generateTasks(date, cnt, ht)
         
-        # YYYY-M (no leading 0)
-        #print("html:month:"+m)
+    else:
 
-        cnt = bill.countDays(m)
-        ht = bill.getHT(m)
-
-        dt = datetime.strptime(m, "%Y-%m")
-        year = str(dt.year)
-        month = str(dt.month)
-
-        htmlMonth = calendar.month_abbr[int(month)]
+        months = bill.getTimespanMonths()
         
-        output += "<div id=\"tasks-lines\">"
-        output += "<span class=\"task-date\">"+htmlMonth+" "+year+"</span>"
-        output += "<span class=\"task-designation\">Developpement de fonctionnalitées : "+str(cnt)+" j</span>"
-        output += "<span class=\"task-price\">"+str(ht)+"€ HT</span>"
-        output += "</div>"
+        if len(months) <= 0:
+            exit("need month")
         
+        #print("tasks months x", len(months))
+
+        for m in months:
+            
+            # YYYY-M (no leading 0)
+            #print("html:month:"+m)
+
+            cnt = bill.countDays(m)
+            ht = bill.getHT(m)
+
+            dt = datetime.strptime(m, "%Y-%m")
+            year = str(dt.year)
+            month = str(dt.month)
+
+            htmlMonth = calendar.month_abbr[int(month)]
+            
+            output += generateTasks(htmlMonth+" "+year, cnt, ht)
+            
     output += "</div>" # /tasks
 
     cnt = bill.countDays()
