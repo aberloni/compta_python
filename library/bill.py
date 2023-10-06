@@ -121,7 +121,7 @@ class Bill:
     
     def getBillFullUid(self):
         
-        from database import Database
+        from library.database import Database
 
         dt = datetime.strptime(self.uid, "%Y-%m-%d")
         bills = Database.instance.getWeekBills(dt)

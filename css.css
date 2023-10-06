@@ -269,6 +269,12 @@ hr
     font-weight: bold;
 }
 
+#done
+{
+    margin-top:100px;
+    margin-left:5%;
+}
+
 /* RIB */
 
 #rib

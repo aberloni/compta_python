@@ -8,8 +8,7 @@ from datetime import datetime
 import calendar
 
 import configs
-
-import database;
+from library.database import Assoc
 
 def wrapAssoc(id, label, value, wrapClass = ""):
     
@@ -44,7 +43,7 @@ def generateHeader(project):
 
     output = "<div id=\"header\">"
 
-    autoe = database.Assoc("autoe")
+    autoe = Assoc("autoe")
 
     # header : name & job
     output += "<div id=\"job\">"
@@ -95,7 +94,7 @@ def generateBill(project, bill):
 
     output = "<div id=\"bill\">"
     
-    assoc = database.Assoc("statics")
+    assoc = Assoc("statics")
 
     output += "<div id=\"dispense\">"+assoc.filterKey("dispense")+"</div>"
 
@@ -166,6 +165,8 @@ def generateBill(project, bill):
     output += wrapAssoc("total","Total à régler", str(ttc)+" € TTC")
     output += "</div>"
 
+    output += "<div id=\"done\">Facturé le "+str(bill.uid)+"</div>"
+
     output += "</div>" # /bill
 
     return output
@@ -173,7 +174,7 @@ def generateBill(project, bill):
 def generateRib():
     output = ""
 
-    rib = database.Assoc("rib")
+    rib = Assoc("rib")
 
     output += "<hr/>"
     output += "<div id=\"rib\">"
@@ -191,7 +192,7 @@ def generateRib():
 def generateContact():
     output = ""
 
-    autoe = database.Assoc("autoe")
+    autoe = Assoc("autoe")
 
     output += "<div id=\"contact\">"
     

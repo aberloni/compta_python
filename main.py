@@ -5,13 +5,14 @@ locale.setlocale(locale.LC_ALL, 'fr_FR')
 # DATABASE LOADER
 
 import configs
-from database import Database
+
+from library.database import Database
 
 database = Database()
 
 print("done importing")
 
-import exporter;
+import library.exporter
 
 projects = ["tinies", "unfortune", "makina"]
 
@@ -25,15 +26,11 @@ for p in projects:
 
         print(" === EXPORT === > "+curProject.uid)
 
-        exporter.exportBills(curProject)
-
-
-
-import configs
+        library.exporter.exportBills(curProject)
 
 if configs.openDumpFolder:
     import os
-    path = exporter.getLocalPath()
+    path = library.exporter.getLocalPath()
     path = path + configs.pathExport
 
     print("open folder @ "+path)
