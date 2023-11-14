@@ -15,7 +15,7 @@ class Database:
     def __init__(self):
         
         from library.task import Task
-        from os import walk
+        # from os import walk
 
         Database.instance = self
 
@@ -51,6 +51,9 @@ class Database:
 
         # print(self.clients)
         # print(self.projects)
+
+        print("imported projects : x", len(self.projects))
+
 
         pass
 

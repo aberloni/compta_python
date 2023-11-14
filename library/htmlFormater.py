@@ -150,6 +150,11 @@ def generateBill(project, bill):
             #print("html:month:"+m)
 
             cnt = bill.countDays(m)
+            
+            # nothing to show
+            if cnt <= 0:
+                continue
+
             ht = bill.getHT(m)
 
             dt = datetime.strptime(m, "%Y-%m")

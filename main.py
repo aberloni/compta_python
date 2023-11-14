@@ -9,23 +9,36 @@ import configs
 
 from library.database import Database
 
-database = Database()
+db = Database()
 
 print("done importing")
 
 import library.exporter
+import library.system
 
-projects = ["tinies", "unfortune", "makina", "spaces"]
+"""
+lnkPath = library.system.getSubdirPath("projects")
 
-for p in projects:
+print(lnkPath)
+
+pFiles = library.system.getAllFilesFromLnk(lnkPath)
+
+print(len(pFiles)+" projects to export")
+
+projects = []
+for p in pFiles:
+    pName = p.split("_")[1]
+    pName = pName.split(".")[0]
+    projects.append(pName)
+
+# projects = ["tinies", "unfortune", "makina", "spaces", "kasbah"]
+"""
+
+for p in db.projects:
+    #curProject = db.getProject(p)
     
-    curProject = database.getProject(p)
-    
-    if curProject == None:
-        print("couldn't not solve project # "+p)
-    else:
-        print(" === EXPORT === > "+curProject.uid)
-        library.exporter.exportBills(curProject)
+    print(" === EXPORT === > "+p.uid)
+    library.exporter.exportBills(p)
 
 if configs.openDumpFolder:
     path = library.exporter.getLocalPath()
