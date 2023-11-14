@@ -8,6 +8,8 @@ def clearExportFolder():
 
     # ...
 
+# get basepath to code folder/
+# 
 def getLocalPath():
     
     localPath = os.getcwd()
@@ -18,8 +20,6 @@ def getLocalPath():
 
 def exportBills(project):
 
-
-
     bills = project.getBills()
 
     if len(bills) <= 0:
@@ -27,6 +27,7 @@ def exportBills(project):
         print("no bills for "+project.uid)
 
     else:
+        
         for b in bills:
             exportBill(project, b)
     
@@ -34,8 +35,9 @@ def exportBills(project):
 def exportBill(project, bill):
 
     import library.htmlFormater
+    import library.system
 
-    print(" === NOW EXPORTING BILL : "+bill.uid)
+    print(" === NOW EXPORTING BILL # "+bill.uid)
 
     billFuid = bill.getBillFullUid()
 
@@ -43,26 +45,28 @@ def exportBill(project, bill):
         print("none fuid : "+bill.uid)
         return
 
-    localPath = getLocalPath()
+    exportPath = library.system.getExportFolderPath()
+    print("export path @ "+exportPath)
+
+    #localPath = getLocalPath()
 
     billFileName = billFuid+"_"+project.client.uid+"_"+project.uid
 
-    print(" === TARGET FILE === > "+billFileName)
+    #print(" === TARGET FILE === > "+billFileName)
     # DUMP
 
-    path = configs.pathExport+billFileName+".dump"
-    f = open(path, "w")
+    pathDump = exportPath+billFileName+".dump"
+    f = open(pathDump, "w")
     f.write(bill.dump())
     f.close()
 
-    # abs path
-    path = localPath + path
+    print("saved dump @ "+pathDump)
 
     if configs.openDumpFile:
-        print("opening dump @ "+path)
+        print("opening dump @ "+pathDump)
 
         # https://stackoverflow.com/questions/43204473/os-startfile-path-in-python-with-numbers
-        os.startfile(path)
+        os.startfile(pathDump)
 
     # GENERATE HTML
 
@@ -72,7 +76,7 @@ def exportBill(project, bill):
     # print(localPath)
 
     if configs.openHtmlFile:
-        path = "file:///"+localPath+configs.pathExport+billFileName+".html"
+        path = "file:///"+exportPath+billFileName+".html"
 
         print("opening html @ "+path)
 
@@ -80,4 +84,3 @@ def exportBill(project, bill):
         #webbrowser.open(htmlFile,new=2)
         webbrowser.open_new_tab(path)
 
-    print("exported : "+billFileName)

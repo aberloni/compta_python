@@ -95,22 +95,22 @@ hr
 
 #infos
 {
-    padding:10px 20px;
+    padding:10px 5%;
 }
 
 #infos div
 {
-    padding:5px;
+    padding:5px 0px;
 }
 
 #infos-impots
 {
-    width:40%
+    width:40%;
 }
 
 #infos-adresse-wrapper
 {
-    width:50%
+    width:50%;
 }
 
 #infos-adresse
@@ -124,11 +124,12 @@ hr
 {
     background-color: var(--bgShade);
     color: var(--fcShade);
-    padding:20px;
+    padding: 20px 0px;
 }
 
 #client-title
 {
+    margin-left:4%;
     font-size: 1.5em;
     font-weight: bold;
 }
@@ -136,7 +137,7 @@ hr
 #client-name, #client-address
 {
     margin-top:1%;
-    margin-left:1%;
+    margin-left:5%;
 }
 
 /* BILLING */
@@ -148,8 +149,8 @@ hr
 
 #dispense
 {
-    font-size:0.8em;
-    margin:0% 20%;
+    font-size:0.6em;
+    margin:20px 10%;
     font-weight: bold;
     text-align: center;
 }
@@ -220,6 +221,7 @@ hr
 #tasks .task-designation
 {
     min-width: 55%;
+    text-align: left;
 }
 
 #tasks .task-price
@@ -271,8 +273,14 @@ hr
 
 #done
 {
-    margin-top:100px;
+    margin-top:10px;
     margin-left:5%;
+}
+
+#done-paiement
+{
+    margin-left:5%;
+    font-size: 0.8em;
 }
 
 /* RIB */
@@ -289,19 +297,15 @@ hr
 
 }
 
-#titulaire
+#rib div
 {
-    height: 50px;
+    height: auto;
 }
 
-#domicile
+#rib-title
 {
-    height:70px;
-}
-
-#refs
-{
-    height:70px;
+    margin-bottom:20px;
+    font-weight: bold;
 }
 
 #rib .assocLabel

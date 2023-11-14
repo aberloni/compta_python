@@ -1,11 +1,16 @@
-
 from datetime import datetime
+from datetime import timedelta
+
+"""
+date de facturation:{start},{end}|montant fixe
+{math sign}label, prix, quantité
+"""
 
 class Bill:
     
     verbose = False
 
-    def __init__(self, project, uid, data):
+    def __init__(self, project, uid, billHeader):
         
         # [UID=>START,END]
         self.project = project
@@ -14,8 +19,21 @@ class Bill:
 
         self.uid = uid # 2023-09-XX
 
+        # https://stackoverflow.com/questions/6871016/adding-days-to-a-date-in-python
+
+        self.limit = datetime.strptime(self.uid, "%Y-%m-%d")
+        self.limit = self.limit + timedelta(days=30)
+        
+        self.limit = self.limit.strftime("%Y-%m-%d")
+        
         # forfait is | after dates
         self.forfait = None
+
+        self.transactions = []
+
+        self.injectData(billHeader)
+
+    def injectData(self, data):
 
         if "|" in data:
             splitted = data.split("|")
@@ -29,12 +47,19 @@ class Bill:
         self.end = datetime.strptime(_dtSplit[1], "%Y-%m-%d")
 
         self.tasks = []
-        for t in project.tasks:
+        for t in self.project.tasks:
             if t.date >= self.start and t.date <= self.end:
                 self.tasks.append(t)
 
         if self.verbose:
             print("bill#"+self.uid+", init = tasks x ", len(self.tasks))
+
+    def parseTransaction(self, assoc):
+        self.transactions.append(BillTransaction(assoc.key, assoc.value))
+    
+    def hasTransactions(self):
+        return len(self.transactions) > 0
+            
 
     def compareBill(self, otherBill):
         if self.uid != otherBill.uid:
@@ -100,8 +125,14 @@ class Bill:
         return self.getTVA() * self.getHT()
 
     def getTTC(self):
-        return self.getHT() + self.getTvaTotal()
+        return self.getHT() + self.getTvaTotal() + self.getTransactionsTTC()
     
+    def getTransactionsTTC(self):
+        output = 0
+        for t in self.transactions:
+            output += t.solvePrice()
+        return round(output, 2)
+
     def dump(self):
         output = self.project.name
 
@@ -130,7 +161,7 @@ class Bill:
         
         for i in range(0,len(bills)):
             
-            print("#"+str(i)+" ? "+bills[i].uid+" vs "+self.uid)
+            #print("#"+str(i)+" ? "+bills[i].uid+" vs "+self.uid)
 
             if bills[i].compareBill(self):
                 inc = i
@@ -192,4 +223,28 @@ class Bill:
         
         return months
     
+
+class BillTransaction:
+    def __init__(self, type, value):
+        split = value.split(",")
+
+        self.type = type
+
+        self.label = split[0]
+
+        self.price = 0
+        if len(split) > 1:
+            self.price = float(split[1])
+
+        self.quantity = 1
+        if len(split) > 2:
+            self.quantity = float(split[2])
+
+    def solvePrice(self):
+        if self.quantity <= 1:
+            return self.price
+        else:
+            return round(self.price * self.quantity, 2)
     
+    def getType(self):
+        return self.type

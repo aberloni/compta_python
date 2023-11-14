@@ -1,4 +1,3 @@
-
 # database files extension
 dbExtension = ".compta"
 
@@ -6,7 +5,7 @@ dbExtension = ".compta"
 pathDatabase = "database/"
 
 # where to export bills
-pathExport = "exports/"
+pathExport = "exports.lnk"
 
 # testing purpose
 htmlExportDefault = "billing" #.html

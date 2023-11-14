@@ -11,8 +11,9 @@ class Project:
         
         from library.database import Assoc
         from library.database import Database
+        from library.database import DatabaseType
 
-        self.assoc = Assoc(fileName)
+        self.assoc = Assoc(fileName, DatabaseType.projects)
 
         self.uid = self.assoc.filterKey("uid")
         self.name = self.assoc.filterKey("name")
@@ -52,12 +53,25 @@ class Project:
     def generateBills(self):
         
         from library.database import Assoc
+        from library.database import DatabaseType
         self.bills = []
         
-        assocs = Assoc("bills_"+self.uid)
+        assocs = Assoc("bills_"+self.uid, DatabaseType.bills)
 
+        bill = None
         for e in assocs.entries:
-            self.bills.append(Bill(self, e.key, e.value))
+
+            #{YYYY-mm-dd} OR {type}
+            type = e.key[0] # first symbol of line
+
+            if type.isnumeric(): # a bill
+                bill = Bill(self, e.key, e.value)
+                self.bills.append(bill)
+            else: # additionnal fields
+                bill.parseTransaction(e)
+
+        print("bill : "+self.uid+" , solved x" ,len(self.bills))
+                
         
 
     def getBill(self, dateStr):

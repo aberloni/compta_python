@@ -4,81 +4,9 @@ from enum import Enum
 import configs
 import library.system
 
+from library.assocs import Assoc
 
-DatabaseType = Enum('DatabaseType', ['client', 'project', 'task'])
-
-class Assoc:
-    def __init__(self, fileName):
-
-        if not configs.dbExtension in fileName:
-            fileName = fileName + configs.dbExtension
-
-        lines = library.system.loadFile(fileName)
-
-        self.entries = []
-
-        for i in range(0, len(lines)):
-            self.entries.append(AssocEntry(lines[i]))
-        
-        pass
-
-    # returns value of that key
-    def filterKey(self, key):
-        for e in self.entries:
-            if e.isKey(key):
-                return e.value
-            
-        return None
-    
-    def filterHtmlValue(self, key):
-        value = self.filterKey(key)
-        return value.replace("|","<br/>")
-
-    # list of all entries with given key
-    def filterKeys(self, key):
-
-        output = []
-        for i in range(0, len(self.entries)):
-            _entry = self.entries[i]
-
-            if _entry.isKey(key):
-                output.append(_entry)
-        
-        if len(output) <= 0:
-            print("nothing to return : ", key)
-        
-        return output
-            
-
-class AssocEntry:
-    def __init__(self, strData):
-        
-        if len(strData) <= 0:
-            print("error : data is empty")
-            return
-        
-        buff = strData.split(":")
-        
-        if len(buff) < 2:
-            print("error:no value ? "+strData)
-
-        self.key = buff[0].strip()
-        self.value = buff[1].strip()
-
-        self.values = []
-        if "," in self.value:
-            self.values = self.value.split(",")
-
-        pass
-
-    def hasValues(self):
-        return len(self.values) > 0
-    
-    def isKey(self, key):
-        
-        # print(self.key+" == "+key)
-
-        return self.key == key
+DatabaseType = Enum('DatabaseType', ["bills","infos","clients", "projects", "tasks"])
 
 class Database:
 
@@ -87,20 +15,37 @@ class Database:
     def __init__(self):
         
         from library.task import Task
+        from os import walk
 
         Database.instance = self
 
-        self.clients = self.fetch(DatabaseType.client)
+        self.clients = self.fetch(DatabaseType.clients)
         
+        # get folder where tasks are
+        tasksPath = Database.getLnkPathFromType(DatabaseType.tasks)
+
+        print("tasks @ "+tasksPath)
+
+        # get all files over there
+        taskFiles = library.system.getAllFilesFromLnk(tasksPath)
+
         self.tasks = []
-        _tasks = Assoc("tasks.compta")
-        for t in _tasks.entries:
-            self.tasks.append(Task(t))
+
+        for f in taskFiles:
+            
+            f = os.path.basename(f) # remove path
+
+            # _tasks = Assoc("tasks.compta", DatabaseSubFolders.tasks)
+            _tasks = Assoc(f, DatabaseType.tasks) # get all tasks from this tasks_file
+
+            # add them all
+            for t in _tasks.entries:
+                self.tasks.append(Task(t))
 
         if self.verbose:
-            print("total tasks[] x", len(self.tasks))
+            print("from tasks files x", len(tasksPath)," = total tasks[] x", len(self.tasks))
 
-        self.projects = self.fetch(DatabaseType.project)
+        self.projects = self.fetch(DatabaseType.projects)
         for p in self.projects:
             p.assignTasks(self.tasks)
 
@@ -109,6 +54,9 @@ class Database:
 
         pass
 
+    def getLnkPathFromType(dbType):
+        return configs.pathDatabase + dbType.name + ".lnk"
+    
     def getClient(self, id):
 
         if not hasattr(self, "clients"):
@@ -145,15 +93,22 @@ class Database:
         from library.client import Client
         from library.project import Project
 
-        files = self.fetchFiles(dbType)
+        files = library.system.getAllFilesFromLnk(configs.pathDatabase + dbType.name + ".lnk")
+        # files = self.fetchFiles(dbType)
 
         output = []
         for c in files:
             tmp = None
 
-            if dbType == DatabaseType.client:
+            c = os.path.basename(c)
+            # remove path
+            # c = c[-c.rfind("\\")]
+
+            print("db fetch() @ "+c)
+
+            if dbType == DatabaseType.clients:
                 tmp = Client(c)
-            elif dbType == DatabaseType.project:
+            elif dbType == DatabaseType.projects:
                 tmp = Project(c)
             
             if c != None:
@@ -181,7 +136,7 @@ class Database:
         for p in self.projects:
             _bills = p.getWeekBills(dt)
 
-            print(p.uid+" & "+str(dt)+" => bills x", len(_bills))
+            # print(p.uid+" & "+str(dt)+" => bills x", len(_bills))
 
             if len(_bills) > 0:
                 for b in _bills:
