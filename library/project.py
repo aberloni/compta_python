@@ -17,7 +17,7 @@ class Project:
 
         self.uid = self.assoc.filterKey("uid")
         self.name = self.assoc.filterKey("name")
-
+        
         self.client = Database.instance.getClient(self.assoc.filterKey("client"))
         # self.tasks = Database.tasks.filterKeys(self.uid)
         

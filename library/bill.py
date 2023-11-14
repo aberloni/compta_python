@@ -223,7 +223,12 @@ class Bill:
         
         return months
     
-
+    def isTimeframe(self, start, end):
+        return self.start >= start and self.end <= end
+    
+"""
+all lines of a bill
+"""
 class BillTransaction:
     def __init__(self, type, value):
         split = value.split(",")

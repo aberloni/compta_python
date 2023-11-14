@@ -7,22 +7,23 @@ import library.system
 #
 class Assoc:
 
-    def __init__(self, fileName, sub = None):
+    def __init__(self, fileName, dbType = None):
         
         self.fileName = fileName;
 
-        if sub == None:
+        if dbType == None:
             return self.create(fileName)
         
-        return self.createBySub(fileName, sub)
+        return self.createBySub(fileName, dbType)
 
     # using LNK
-    def createBySub(self, fileName, sub):
-
+    def createBySub(self, fileName, dbType):
+        from library.path import Path
+        
         if not configs.dbExtension in fileName:
             fileName = fileName + configs.dbExtension
         
-        lines = library.system.loadFileLnk(sub, fileName)
+        lines = Path.getLinesFromDbType(dbType, fileName)
 
         self.solveEntries(lines)
 
@@ -49,7 +50,7 @@ class Assoc:
     def filterKey(self, key):
 
         if self.entries == None:
-            print("error: no entries on Assoc@"+self.fileName)
+            library.system.error("no entries on Assoc@"+self.fileName)
             return None
         
         for e in self.entries:

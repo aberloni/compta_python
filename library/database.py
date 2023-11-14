@@ -6,7 +6,9 @@ import library.system
 
 from library.assocs import Assoc
 
-DatabaseType = Enum('DatabaseType', ["bills","infos","clients", "projects", "tasks"])
+DatabaseType = Enum('DatabaseType', ["bills","infos","clients", "projects", "tasks", "statements"])
+
+#db = Database()
 
 class Database:
 
@@ -14,20 +16,63 @@ class Database:
 
     def __init__(self):
         
-        from library.task import Task
-        # from os import walk
-
         Database.instance = self
 
-        self.clients = self.fetch(DatabaseType.clients)
+        pass
         
+    @staticmethod
+    def tracking():
+
+        instance = Database.billing()
+
+        instance.solveStatements()
+
+        return instance
+    
+    @staticmethod
+    def billing():
+        
+        # from os import walk
+
+        instance = Database()
+
+        instance.solveClients()
+        instance.solveTasks()
+        instance.solveProjects()
+
+        return instance
+
+    def solveStatements(self):
+        self.statements = self.fetch(DatabaseType.statements)
+        #print("imported x", len(self.statements))
+
+
+    def solveClients(self):
+
+        # -clients
+        self.clients = self.fetch(DatabaseType.clients)
+    
+    def solveProjects(self):
+
+        self.projects = self.fetch(DatabaseType.projects)
+        for p in self.projects:
+            p.assignTasks(self.tasks)
+
+        # print(self.clients)
+        # print(self.projects)
+        
+        print("imported projects : x", len(self.projects))
+
+
+
+    def solveTasks(self):
+
+        from library.task import Task
+        from library.path import Path
+
+        # -tasks
         # get folder where tasks are
-        tasksPath = Database.getLnkPathFromType(DatabaseType.tasks)
-
-        print("tasks @ "+tasksPath)
-
-        # get all files over there
-        taskFiles = library.system.getAllFilesFromLnk(tasksPath)
+        taskFiles = Path.getAllFilesFromDbType(DatabaseType.tasks)
 
         self.tasks = []
 
@@ -43,23 +88,8 @@ class Database:
                 self.tasks.append(Task(t))
 
         if self.verbose:
-            print("from tasks files x", len(tasksPath)," = total tasks[] x", len(self.tasks))
+            print("from tasks files = total tasks[] x", len(self.tasks))
 
-        self.projects = self.fetch(DatabaseType.projects)
-        for p in self.projects:
-            p.assignTasks(self.tasks)
-
-        # print(self.clients)
-        # print(self.projects)
-
-        print("imported projects : x", len(self.projects))
-
-
-        pass
-
-    def getLnkPathFromType(dbType):
-        return configs.pathDatabase + dbType.name + ".lnk"
-    
     def getClient(self, id):
 
         if not hasattr(self, "clients"):
@@ -91,12 +121,17 @@ class Database:
         if self.verbose:
             print("no project # "+projectUid)
 
+    """
+    will create an array of matching dbType class
+    """
     def fetch(self, dbType):
         
         from library.client import Client
         from library.project import Project
+        from library.path import Path
+        from library.statements import Statements
 
-        files = library.system.getAllFilesFromLnk(configs.pathDatabase + dbType.name + ".lnk")
+        files = Path.getAllFilesFromDbType(dbType)
         # files = self.fetchFiles(dbType)
 
         output = []
@@ -107,12 +142,14 @@ class Database:
             # remove path
             # c = c[-c.rfind("\\")]
 
-            print("db fetch() @ "+c)
+            print("db::fetch("+dbType.name+") @ "+c)
 
             if dbType == DatabaseType.clients:
                 tmp = Client(c)
             elif dbType == DatabaseType.projects:
                 tmp = Project(c)
+            elif dbType == DatabaseType.statements:
+                tmp = Statements(c)
             
             if c != None:
                 output.append(tmp)
@@ -151,5 +188,26 @@ class Database:
         bills = self.getWeekBills(dt)
         return len(bills)
 
+    def solveUnpaid(self):
+        output = []
 
+        for p in self.projects:
+            bills = p.getBills()
 
+            
+
+            for b in bills:
+                ttc = b.getTTC()
+
+                found = False
+
+                # search for TTC in statements
+                for si in self.statements:
+                    for s in si:
+                        if ttc == s.amount:
+                            found = True
+            
+                if not found:
+                    output.append(b)
+        
+        return output

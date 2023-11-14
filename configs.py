@@ -1,17 +1,13 @@
+#import library.exporter
+
 # database files extension
 dbExtension = ".compta"
+statementsExtension = ".csv"
 
-# path to your own database
-pathDatabase = "database/"
+# BILLING
 
-# where to export bills
-pathExport = "exports.lnk"
+pathBilling = "billings/"
 
-# testing purpose
-htmlExportDefault = "billing" #.html
-
-openDumpFolder = True
-openHtmlFile = False
-openDumpFile = False
-
-clearExportFolder = False # not implem
+openBillingFolder = True
+openBillingHtmlFile = False
+openBillingDumpFile = False

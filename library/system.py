@@ -1,49 +1,8 @@
 import configs
 import os
 
-# return the real path of a LNK target
-#
-def getSubdirPath(sub):
 
-    # path to LNK from database sub name
-    path = configs.pathDatabase + sub.name
-    path += ".lnk"
-
-    return getExtractShkPath(path)
-
-# load using lnk filtering
-#
-def loadFileLnk(sub, fileNameExt):
-    
-    # regen real path of where the file is
-    path = getSubdirPath(sub)
-
-    path += fileNameExt
-
-    # print("LNK:PATH:", path)
-
-    return loadFile(path)
-
-# just load from database/ folder
-#
-def loadFileDb(fileNameExt):
-
-    path = configs.pathDatabase + fileNameExt
-
-    return loadFile(path)
-
-# 
-# load a file from the database folder
-# 
-def loadFile(pathFileNameExt):
-
-    path = pathFileNameExt
-
-    if not os.path.exists(path):
-       return None
-     
-    with open(path, "r", encoding='utf-8') as f:
-        lines = f.readlines()
+def filterLines(lines):
 
     output = []
     for l in lines:
@@ -62,9 +21,59 @@ def loadFile(pathFileNameExt):
 
     return output
 
-def loadFileByDbType(dbType, fileNameExt):
+"""
+load using lnk filtering
+"""
+def loadFileLnk(lnk, fileNameExt):
     
-    path = configs.pathDatabase+dbType.name+"_"+fileNameExt
+    from library.path import Path
+    
+    # regen real path of where the file is
+    path = Path.getLnkPath(lnk)
+
+    return loadFile(path+fileNameExt)
+
+"""
+just load a file from database/ folder
+"""
+def loadFileDb(fileNameExt):
+    from library.path import Path
+    path = Path.pathDatabase + fileNameExt
+    return loadFile(path)
+
+def loadFile(path):
+    if not os.path.exists(path):
+       print("[WARNING] file @ "+path+" does not exists")
+       return None
+    
+    print("reading file @ "+path)
+
+    with open(path, "r") as f:
+        lines = f.readlines()
+    
+    return filterLines(lines)
+
+"""
+load all lines of a file
+in : abs path to file /w ext
+"""
+def loadFileUTF(path):
+
+    if not os.path.exists(path):
+       print("[WARNING] file @ "+path+" does not exists")
+       return None
+    
+    with open(path, "r", encoding='utf-8') as f:
+        lines = f.readlines()
+
+    return filterLines(lines)
+
+"""
+load a file from db type folders
+"""
+def loadFileByDbType(dbType, fileNameExt):
+    from path import Path
+    path = Path.getDbTypePath(dbType)+"_"+fileNameExt
 
     f = open(path, "r")
     lines = f.readlines()
@@ -76,8 +85,9 @@ def loadFileByDbType(dbType, fileNameExt):
     # string[]
     return lines
 
-# input : path that includes file.lnk
-# 
+"""
+input : path that includes file.lnk
+"""
 def getExtractShkPath(path):
     import struct
 
@@ -111,24 +121,27 @@ def getExtractShkPath(path):
     
     return target+"/"
 
-def getExportFolderPath():
-    return getExtractShkPath("exports.lnk")
-
-def getAllFilesInFolder(path):
+"""
+out : array of files within that folder
+"""
+def getAllFilesInFolder(absPath):
     
     # https://stackoverflow.com/questions/3207219/how-do-i-list-all-files-of-a-directory
 
     import glob
 
-    files = glob.glob(path+"*")
+    files = glob.glob(absPath+"*")
 
     #print(files)
     
     return files
 
-def getAllFilesFromLnk(pathLnk):
 
-    # returns the actual folder path of that link
-    path = getExtractShkPath(pathLnk)
+def log(log):
+    print(log)
 
-    return getAllFilesInFolder(path)
+def warning(log):
+    print("     [WARNING] "+log)
+
+def error(log):
+    print("     [ERROR] "+log)

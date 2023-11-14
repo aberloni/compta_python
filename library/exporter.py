@@ -1,5 +1,4 @@
 import os
-
 import configs
 
 def clearExportFolder():
@@ -36,6 +35,7 @@ def exportBill(project, bill):
 
     import library.htmlFormater
     import library.system
+    from library.path import Path
 
     print(" === NOW EXPORTING BILL # "+bill.uid)
 
@@ -45,7 +45,7 @@ def exportBill(project, bill):
         print("none fuid : "+bill.uid)
         return
 
-    exportPath = library.system.getExportFolderPath()
+    exportPath = Path.getExportBillingPath()
     print("export path @ "+exportPath)
 
     #localPath = getLocalPath()
@@ -62,7 +62,7 @@ def exportBill(project, bill):
 
     print("saved dump @ "+pathDump)
 
-    if configs.openDumpFile:
+    if configs.openBillingDumpFile:
         print("opening dump @ "+pathDump)
 
         # https://stackoverflow.com/questions/43204473/os-startfile-path-in-python-with-numbers
@@ -75,7 +75,7 @@ def exportBill(project, bill):
     # [drive]:\[path_to_cloned_folder\
     # print(localPath)
 
-    if configs.openHtmlFile:
+    if configs.openBillingHtmlFile:
         path = "file:///"+exportPath+billFileName+".html"
 
         print("opening html @ "+path)
@@ -83,4 +83,3 @@ def exportBill(project, bill):
         import webbrowser
         #webbrowser.open(htmlFile,new=2)
         webbrowser.open_new_tab(path)
-

@@ -10,6 +10,7 @@ import calendar
 import configs
 from library.database import Assoc
 from library.database import DatabaseType
+from library.path import Path
 
 def wrapAssoc(id, label, value, wrapClass = ""):
     
@@ -283,7 +284,7 @@ def generateHtml(project, bill, exportFileName):
     # saving
     html = wrapSection("html", html)
 
-    exportPath = library.system.getExportFolderPath()
+    exportPath = Path.getExportFolderPath()
     f = open(exportPath + exportFileName + ".html", "w")
     f.write(html)
     f.close()
