@@ -1,6 +1,7 @@
 
 import configs
 import library.system
+from library.path import Path
 
 # a file from the database
 # that can be parsed as a series of KEY:VALUE
@@ -18,20 +19,21 @@ class Assoc:
 
     # using LNK
     def createBySub(self, fileName, dbType):
-        from library.path import Path
         
         if not configs.dbExtension in fileName:
             fileName = fileName + configs.dbExtension
-        
+  
         lines = Path.getLinesFromDbType(dbType, fileName)
+
+        #print(fileName+" QTY ", len(lines))
 
         self.solveEntries(lines)
 
     def create(self, fileName):
         if not configs.dbExtension in fileName:
             fileName = fileName + configs.dbExtension
-            
-        lines = library.system.loadFileDb(fileName)
+        
+        lines = Path.getLinesDbFile(fileName)
 
         self.solveEntries(lines)
     
@@ -46,6 +48,16 @@ class Assoc:
         for i in range(0, len(lines)):
             self.entries.append(AssocEntry(lines[i]))
         
+    def filterKeyContains(self, pattern):
+        
+        for e in self.entries:
+            if e.key.lower() in pattern.lower():
+                return e
+        
+        #library.system.warning(pattern+" NOT FOUND")
+
+        return None
+
     # returns value of that key
     def filterKey(self, key):
 

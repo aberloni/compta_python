@@ -42,11 +42,12 @@ def loadFileDb(fileNameExt):
     return loadFile(path)
 
 def loadFile(path):
+
     if not os.path.exists(path):
        print("[WARNING] file @ "+path+" does not exists")
        return None
     
-    print("reading file @ "+path)
+    #print("reading file @ "+path)
 
     with open(path, "r") as f:
         lines = f.readlines()
@@ -63,6 +64,8 @@ def loadFileUTF(path):
        print("[WARNING] file @ "+path+" does not exists")
        return None
     
+    #print(path)
+
     with open(path, "r", encoding='utf-8') as f:
         lines = f.readlines()
 

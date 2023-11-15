@@ -25,6 +25,7 @@ class Database:
 
         instance = Database.billing()
 
+        instance.creanciers = Assoc("creanciers")
         instance.solveStatements()
 
         return instance
@@ -61,7 +62,7 @@ class Database:
         # print(self.clients)
         # print(self.projects)
         
-        print("imported projects : x", len(self.projects))
+        #print("imported projects : x", len(self.projects))
 
 
 
@@ -117,9 +118,9 @@ class Database:
             if(p.uid == projectUid):
                 return p
         
-        
         if self.verbose:
             print("no project # "+projectUid)
+
 
     """
     will create an array of matching dbType class
@@ -129,7 +130,7 @@ class Database:
         from library.client import Client
         from library.project import Project
         from library.path import Path
-        from library.statements import Statements
+        from library.statements import BankLogs
 
         files = Path.getAllFilesFromDbType(dbType)
         # files = self.fetchFiles(dbType)
@@ -142,14 +143,15 @@ class Database:
             # remove path
             # c = c[-c.rfind("\\")]
 
-            print("db::fetch("+dbType.name+") @ "+c)
+            if self.verbose:
+                print("db::fetch("+dbType.name+") @ "+c)
 
             if dbType == DatabaseType.clients:
                 tmp = Client(c)
             elif dbType == DatabaseType.projects:
                 tmp = Project(c)
             elif dbType == DatabaseType.statements:
-                tmp = Statements(c)
+                tmp = BankLogs(c)
             
             if c != None:
                 output.append(tmp)

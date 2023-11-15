@@ -1,13 +1,9 @@
 class Path:
 
-    pathDatabase = "database/"
+    localDatabase = False
 
-    shkExport = "exports.lnk"
-
-    # in : lnk name within database path
-    # out : abs path
-    def getDbTypePath(dbType):
-        return Path.getLnkPath(Path.pathDatabase+dbType.name)
+    shkDatabase = "database"
+    shkExport = "exports"
 
     # in : abs path to lnk
     # out : abs path
@@ -43,13 +39,27 @@ class Path:
     """
     @staticmethod
     def getLinesFromDbType(dbType, fileNameExt):
-
         import library.system
         path = Path.getDbTypePath(dbType)
         path += fileNameExt
-
-        print("lines from @ "+path)
-
+        return library.system.loadFileUTF(path)
+    
+    @staticmethod
+    def getDbPath():
+        return Path.getLnkPath(Path.shkDatabase)
+    
+    """
+    in : lnk name within database path
+    out : abs path
+    """
+    def getDbTypePath(dbType):
+        return Path.getDbPath() + dbType.name+"/"
+    
+    @staticmethod
+    def getLinesDbFile(fileNameExt):
+        import library.system
+        path = Path.getDbPath()
+        path += fileNameExt
         return library.system.loadFileUTF(path)
     
     """
@@ -63,7 +73,7 @@ class Path:
         path = Path.getDbTypePath(DatabaseType.statements)
         path += fileNameExt
 
-        print("lines from @ "+path)
+        #print("lines from @ "+path)
 
         return library.system.loadFile(path)
     
@@ -84,7 +94,7 @@ class Path:
         # returns the actual folder path of that link
         path = Path.getDbTypePath(dbType)
         
-        print("fetching files @"+path)
+        #print("fetching files @"+path)
 
         return library.system.getAllFilesInFolder(path)
 

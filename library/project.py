@@ -70,7 +70,7 @@ class Project:
             else: # additionnal fields
                 bill.parseTransaction(e)
 
-        print("bill : "+self.uid+" , solved x" ,len(self.bills))
+        #print("bill : "+self.uid+" , solved x" ,len(self.bills))
                 
         
 

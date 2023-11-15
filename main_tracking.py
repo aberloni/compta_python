@@ -18,21 +18,20 @@ db = Database.tracking()
 # do something with it
 #print(db)
 
-"""
-for s in db.statements:
-    #print(s.countPositives("2023-01-01", "2023-12-31"))
-    print(s.countPositives("2023-09-01", "2023-09-30"))
-"""
+print("=== TRACKING")
 
-unpaids = db.solveUnpaid()
+for sf in db.statements:
+    print(sf.uid)
+    print("statements quantity x", len(sf.statements))
 
-for bill in unpaids:
-    print(bill.uid+ " "+bill.getTTC())
+    for s in sf.statements:
+        if not s.hasCreancier():
+            s.logUnknown()
+
 
 # export/dump result
 
-path = Path.getExportStatementsFolder()
-print("tracking : open folder @ "+path)
-os.startfile(path)
+#path = Path.getExportStatementsFolder()
+#os.startfile(path)
 
 exit()
