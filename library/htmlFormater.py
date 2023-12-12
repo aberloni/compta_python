@@ -238,9 +238,6 @@ def generateContact():
 
 
 def generateHtml(project, bill, exportFileName):
-
-    import library.system
-
     print("---HTML GENERATOR---")
     
     if project == None:
@@ -284,7 +281,7 @@ def generateHtml(project, bill, exportFileName):
     # saving
     html = wrapSection("html", html)
 
-    exportPath = Path.getExportFolderPath()
+    exportPath = Path.getExportBillingFolder()
     f = open(exportPath + exportFileName + ".html", "w")
     f.write(html)
     f.close()

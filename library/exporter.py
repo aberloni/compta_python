@@ -59,7 +59,7 @@ def exportBill(project, bill):
     f = open(pathDump, "w")
     f.write(bill.dump())
     f.close()
-
+    
     print("saved dump @ "+pathDump)
 
     if configs.openBillingDumpFile:

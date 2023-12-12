@@ -2,8 +2,9 @@ class Path:
 
     localDatabase = False
 
-    shkDatabase = "database"
-    shkExport = "exports"
+    shkExternal = "externals"
+    #shkDatabase = "database"
+    #shkExport = "exports"
 
     # in : abs path to lnk
     # out : abs path
@@ -14,6 +15,10 @@ class Path:
             pathLnk += ".lnk"
 
         absPath = library.system.getExtractShkPath(pathLnk)
+
+        #print(pathLnk)
+        #print(absPath)
+
         return absPath
 
     # in : dbType
@@ -22,12 +27,16 @@ class Path:
     def getPathDbType(dbType):
         return Path.getDbTypePath(dbType.name)
     
+    @staticmethod
+    def getDbPath():
+        return Path.getLnkPath(Path.shkExternal)+"database/"
+    
     """
     out : path to exports/ from db/lnk
     """
     @staticmethod
     def getExportFolderPath():
-        return Path.getLnkPath(Path.pathDatabase+"exports")
+        return Path.getLnkPath(Path.shkExternal)+"exports/"
     
     @staticmethod
     def getExportBillingPath():
@@ -43,10 +52,6 @@ class Path:
         path = Path.getDbTypePath(dbType)
         path += fileNameExt
         return library.system.loadFileUTF(path)
-    
-    @staticmethod
-    def getDbPath():
-        return Path.getLnkPath(Path.shkDatabase)
     
     """
     in : lnk name within database path
