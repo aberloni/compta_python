@@ -1,6 +1,23 @@
 import configs
 import os
+from datetime import datetime
 
+"""
+2024-01
+2024-01-18
+"""
+def strToYmd(str):
+    
+    dt = None
+
+    cnt = str.count('-')
+
+    if cnt > 1:
+        dt = datetime.strptime(str,"%Y-%m-%d")
+    elif cnt == 1:
+        dt = datetime.strptime(str,"%Y-%m")
+
+    return dt
 
 def filterLines(lines):
 

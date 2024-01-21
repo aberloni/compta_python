@@ -2,7 +2,6 @@ import os
 from enum import Enum
 
 import configs
-import library.system
 
 from library.assocs import Assoc
 

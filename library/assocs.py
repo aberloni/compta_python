@@ -10,7 +10,7 @@ class Assoc:
 
     def __init__(self, fileName, dbType = None):
         
-        self.fileName = fileName;
+        self.fileName = fileName
 
         if dbType == None:
             return self.create(fileName)
@@ -91,6 +91,10 @@ class Assoc:
         return output
             
 
+"""
+key:value
+key:value,value,value
+"""
 class AssocEntry:
     def __init__(self, strData):
         
@@ -103,12 +107,17 @@ class AssocEntry:
         if len(buff) < 2:
             print("error:no value ? "+strData)
 
+        # remove unwanted spaces
         self.key = buff[0].strip()
         self.value = buff[1].strip()
-
+        
+        # values[]
+        # NEVER single value
         self.values = []
         if "," in self.value:
             self.values = self.value.split(",")
+        else:
+            self.values.append(self.value)
 
         pass
 

@@ -7,7 +7,6 @@
 from datetime import datetime
 import calendar
 
-import configs
 from library.database import Assoc
 from library.database import DatabaseType
 from library.path import Path

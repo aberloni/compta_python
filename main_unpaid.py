@@ -27,7 +27,7 @@ for s in db.statements:
 unpaids = db.solveUnpaid()
 
 for bill in unpaids:
-    print(bill.uid+ " "+bill.getTTC())
+    print("billd?"+bill.uid+ " ttc?"+bill.getTTC())
 
 # export/dump result
 

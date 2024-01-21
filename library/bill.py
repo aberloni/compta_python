@@ -1,5 +1,6 @@
 from datetime import datetime
 from datetime import timedelta
+import library.system
 
 """
 date de facturation:{start},{end}|montant fixe
@@ -8,7 +9,7 @@ date de facturation:{start},{end}|montant fixe
 
 class Bill:
     
-    verbose = False
+    verbose = True
 
     def __init__(self, project, uid, billHeader):
         
@@ -18,6 +19,8 @@ class Bill:
         # data = data[1:-1] # remove []
 
         self.uid = uid # 2023-09-XX
+        
+        self.log("create")
 
         # https://stackoverflow.com/questions/6871016/adding-days-to-a-date-in-python
 
@@ -35,6 +38,7 @@ class Bill:
 
     def injectData(self, data):
 
+        # | is to override day count
         if "|" in data:
             splitted = data.split("|")
             data = splitted[0]
@@ -43,16 +47,20 @@ class Bill:
         _dtSplit = data.split(",")
 
         # real datetime, not strings
+        
+        self.log("    bill range : "+_dtSplit[0]+" -> "+_dtSplit[1])
+
         self.start = datetime.strptime(_dtSplit[0], "%Y-%m-%d")
         self.end = datetime.strptime(_dtSplit[1], "%Y-%m-%d")
+        
+        
 
         self.tasks = []
         for t in self.project.tasks:
-            if t.date >= self.start and t.date <= self.end:
+            if t.isDateRange(self.start, self.end):
                 self.tasks.append(t)
 
-        if self.verbose:
-            print("bill#"+self.uid+", init = tasks x ", len(self.tasks))
+        self.log("    tasks x "+str(len(self.tasks))+" / "+str(len(self.project.tasks)))
 
     def parseTransaction(self, assoc):
         self.transactions.append(BillTransaction(assoc.key, assoc.value))
@@ -100,16 +108,22 @@ class Bill:
 
         return sMonth+" | "+eMonth
     
+    # str Ym
     def countDays(self, Ym = None):
         
         if self.isForfait():
             return self.forfait
         
+        dYm = None
+        if Ym != None:
+            dYm = library.system.strToYmd(Ym)
+        
         output = 0
         for t in self.tasks:
             
-            if Ym != None:
-                if not t.isMonth(Ym):
+            # has filter ? can be null
+            if dYm != None:
+                if not t.isMonth(dYm):
                     continue
 
             output += t.len
@@ -150,6 +164,9 @@ class Bill:
 
         return output
     
+    """
+    this will generate the full UID of a bill
+    """
     def getBillFullUid(self):
         
         from library.database import Database
@@ -167,7 +184,7 @@ class Bill:
                 inc = i
 
         if self.verbose:
-            print(str(dt.year)+"-"+str(dt.month)+" => found TOTAL bills x", len(bills))
+            print("date : "+str(dt)+" match bills x", len(bills))
             print("searching for local bill : "+self.uid)
             print("index #"+str(inc))
 
@@ -225,6 +242,14 @@ class Bill:
     
     def isTimeframe(self, start, end):
         return self.start >= start and self.end <= end
+    
+    def log(self, msg):
+
+        if not self.verbose:
+            return
+    
+        print("bill#"+self.uid+" : "+msg)
+
     
 """
 all lines of a bill

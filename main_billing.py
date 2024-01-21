@@ -25,7 +25,7 @@ print("=== EXPORTING BILLS")
 for p in db.projects:
     #curProject = db.getProject(p)
     
-    print(" === EXPORT === > "+p.uid)
+    print("=== EXPORT BILLS PROJECT : "+p.uid)
     library.exporter.exportBills(p)
 
 if configs.openBillingFolder:

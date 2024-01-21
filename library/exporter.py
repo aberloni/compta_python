@@ -23,7 +23,7 @@ def exportBills(project):
 
     if len(bills) <= 0:
         
-        print("no bills for "+project.uid)
+        print(" /! no bills for "+project.uid)
 
     else:
         
@@ -37,9 +37,9 @@ def exportBill(project, bill):
     import library.system
     from library.path import Path
 
-    print(" === NOW EXPORTING BILL # "+bill.uid)
-
     billFuid = bill.getBillFullUid()
+
+    print("\n\n === NOW EXPORTING BILL "+bill.uid+" # "+billFuid)
 
     if billFuid == None:
         print("none fuid : "+bill.uid)

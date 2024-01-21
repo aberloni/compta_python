@@ -21,7 +21,7 @@ db = Database.tracking()
 print("=== TRACKING")
 
 for sf in db.statements:
-    print(sf.uid)
+    print("statement uid : "+sf.uid)
     print("statements quantity x", len(sf.statements))
 
     for s in sf.statements:
