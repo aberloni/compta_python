@@ -1,6 +1,7 @@
 from datetime import datetime
 from datetime import timedelta
-import library.system
+
+from modules.system import *
 
 """
 date de facturation:{start},{end}|montant fixe
@@ -9,7 +10,7 @@ date de facturation:{start},{end}|montant fixe
 
 class Bill:
     
-    verbose = True
+    verbose = False
 
     def __init__(self, project, uid, billHeader):
         
@@ -116,7 +117,7 @@ class Bill:
         
         dYm = None
         if Ym != None:
-            dYm = library.system.strToYmd(Ym)
+            dYm = strToYmd(Ym)
         
         output = 0
         for t in self.tasks:
@@ -169,7 +170,7 @@ class Bill:
     """
     def getBillFullUid(self):
         
-        from library.database import Database
+        from packages.database.database import Database
 
         dt = datetime.strptime(self.uid, "%Y-%m-%d")
         bills = Database.instance.getWeekBills(dt)
@@ -245,7 +246,7 @@ class Bill:
     
     def log(self, msg):
 
-        if not self.verbose:
+        if not Bill.verbose:
             return
     
         print("bill#"+self.uid+" : "+msg)

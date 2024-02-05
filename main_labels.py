@@ -1,5 +1,6 @@
 """
-    display tracking info
+    WIP
+    display some data based on statements from bank
 """
 
 import locale
@@ -9,8 +10,7 @@ locale.setlocale(locale.LC_ALL, 'fr_FR')
 
 import os
 
-from library.database import Database
-from library.path import Path
+from packages.database.database import Database
 
 # load all data
 db = Database.tracking()
@@ -18,11 +18,15 @@ db = Database.tracking()
 # do something with it
 #print(db)
 
-print("=== TRACKING")
+exit()
+
+
+print("\n\n")
+print(" ... logging unknown statements labels")
 
 for sf in db.statements:
-    print("statement uid : "+sf.uid)
-    print("statements quantity x", len(sf.statements))
+
+    print(f"{sf.uid} x{len(sf.statements)}")
 
     for s in sf.statements:
         if not s.hasCreancier():

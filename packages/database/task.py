@@ -1,5 +1,4 @@
-import library.system
-from datetime import datetime
+from modules.system import *
 
 """
 project:work_date
@@ -24,7 +23,7 @@ class Task:
         else:
             dt = assoc.values[0]
         
-        self.date = library.system.strToYmd(dt)
+        self.date = strToYmd(dt)
 
         # default values
         self.len = 1
@@ -45,12 +44,12 @@ class Task:
                 if ">" in val:
                     # https://stackoverflow.com/questions/663171/how-do-i-get-a-substring-of-a-string-in-python
                     self.redirect = val[1:] # remove '>'
-                    self.redirect = library.system.strToYmd(self.redirect)
+                    self.redirect = strToYmd(self.redirect)
             
         pass
 
     def getProject(self):
-        from library.database import Database
+        from packages.database.database import Database
         return Database.instance.getProject(self.key)
     
     def getValue(self, uid):

@@ -1,11 +1,15 @@
 
 import configs
-import library.system
-from library.path import Path
+from modules.system import *
+from modules.path import *
 
-# a file from the database
-# that can be parsed as a series of KEY:VALUE
-#
+"""
+a file from the database
+that can be parsed as a series of KEY:VALUE
+
+params :
+    dbType is subfolder/
+"""
 class Assoc:
 
     def __init__(self, fileName, dbType = None):

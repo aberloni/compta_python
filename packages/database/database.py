@@ -3,11 +3,9 @@ from enum import Enum
 
 import configs
 
-from library.assocs import Assoc
+from modules.path import Path
 
-DatabaseType = Enum('DatabaseType', ["bills","infos","clients", "projects", "tasks", "statements"])
-
-#db = Database()
+DatabaseType = Enum('DatabaseType', ["bills", "infos","clients", "projects", "tasks", "statements", "creditors"])
 
 class Database:
 
@@ -20,11 +18,24 @@ class Database:
         pass
         
     @staticmethod
+    def getExportStatementsFolder():
+        return Path.getExportFolderPath()+"statements/"
+
+    @staticmethod
+    def getExportBillingFolder():
+        return Path.getExportFolderPath()+"billings/"
+
+    @staticmethod
     def tracking():
+
+        from packages.database.creditor import Creditor
+        from modules.assocs import Assoc
 
         instance = Database.billing()
 
+        instance.creditos = Creditor()
         instance.creanciers = Assoc("creanciers")
+        
         instance.solveStatements()
 
         return instance
@@ -67,8 +78,9 @@ class Database:
 
     def solveTasks(self):
 
-        from library.task import Task
-        from library.path import Path
+        import packages.database.task as task
+        from modules.path import Path
+        from modules.assocs import Assoc
 
         # -tasks
         # get folder where tasks are
@@ -85,7 +97,7 @@ class Database:
 
             # add them all
             for t in _tasks.entries:
-                self.tasks.append(Task(t))
+                self.tasks.append(task.Task(t))
 
         if self.verbose:
             print("from tasks files = total tasks[] x", len(self.tasks))
@@ -126,10 +138,10 @@ class Database:
     """
     def fetch(self, dbType):
         
-        from library.client import Client
-        from library.project import Project
-        from library.path import Path
-        from library.statements import BankLogs
+        from packages.database.client import Client
+        from packages.database.project import Project
+        from modules.path import Path
+        from packages.database.statements import BankLogs
 
         files = Path.getAllFilesFromDbType(dbType)
         # files = self.fetchFiles(dbType)

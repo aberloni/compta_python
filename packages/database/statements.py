@@ -1,16 +1,25 @@
+"""
+Sort all data extracted from bank listings
+bank, date, amount, currency
+"""
+
 
 from datetime import datetime
-from library.database import DatabaseType
+from packages.database.database import DatabaseType
+from modules.path import Path
 
 class BankLogs:
 
+    const_pending = "pending"
+
     def __init__(self, fileNameExt):
 
-        from library.path import Path
+        
 
         #print("STATEMENT @"+fileNameExt)
-
+        
         datas = fileNameExt.split("_")
+
         self.bank = datas[0]
         self.dtStart = datas[1]
 
@@ -21,6 +30,8 @@ class BankLogs:
             print("[error] no lines @ statements:"+fileNameExt)
 
         self.uid = fileNameExt
+
+        #print("generating "+fileNameExt)
 
         self.statements = []
         for l in lines:
@@ -55,11 +66,14 @@ class BankLogs:
 class Statement:
     def __init__(self, bank, line):
 
-        from library.database import Database
+        from packages.database.database import Database
 
         self.bank = bank
         self.line = line
-        
+
+        self.amount = 0
+        self.currency = None
+
         if "sg" in self.bank:
             self.solveSG(line)
         elif "helios" in self.bank:
@@ -76,26 +90,34 @@ class Statement:
         self.date = datetime.strptime(datas[0], "%d/%m/%Y")
         self.label = datas[2]
         self.amount = round(float(datas[6]), 2)
-        self.devise = "EUR"
+        self.currency = "EUR"
 
     def solveSG(self, line):
 
+        #print(line)
+
+        # FORMAT
+        #   DD/MM/YYYY;SHORT LABEL;LONG LABEL;AMOUNT;CURRENCY
+        
         datas = line.split(";")
+
+        #print(datas)print(line)
 
         self.date = datetime.strptime(datas[0], "%d/%m/%Y")
         
-        #self.short = datas[1]
-        self.label = datas[2]
+        self.label = datas[1]
 
-        amount = datas[3]
-
-        if "," in amount:
-            amount = amount.replace(",",".")
+        _amount = datas[2]
         
-        self.amount = round(float(amount), 2)
+        #print(line)print(_amount)
 
-        if len(datas) > 4:
-            self.devise = datas[4] # EUR
+        if "," in _amount:
+            _amount = _amount.replace(",",".")
+        
+        self.amount = round(float(_amount), 2)
+
+        if len(datas) > 3:
+            self.currency = datas[3] # EUR
 
         #print(self.label)
         
@@ -123,7 +145,7 @@ class Statement:
         output += "     €"+str(self.amount)
 
         if self.creancier is not None:
-            output += "     "+str(self.creancier.value)
+            output += "     @"+str(self.creancier.value)
         else:
             output += "     [unknown]"
         

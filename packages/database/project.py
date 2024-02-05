@@ -1,6 +1,7 @@
 
+from packages.database.database import Database, DatabaseType
+from modules.assocs import Assoc
 
-from library.bill import Bill
 from datetime import datetime
 
 class Project:
@@ -9,10 +10,6 @@ class Project:
 
     def __init__(self, fileName):
         
-        from library.database import Assoc
-        from library.database import Database
-        from library.database import DatabaseType
-
         self.assoc = Assoc(fileName, DatabaseType.projects)
 
         self.uid = self.assoc.filterKey("uid")
@@ -52,8 +49,10 @@ class Project:
 
     def generateBills(self):
         
-        from library.database import Assoc
-        from library.database import DatabaseType
+        from modules.assocs import Assoc
+        from packages.database.database import DatabaseType
+        from packages.database.bill import Bill
+
         self.bills = []
         
         assocs = Assoc("bills_"+self.uid, DatabaseType.bills)

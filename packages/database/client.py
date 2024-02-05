@@ -1,5 +1,5 @@
-from library.database import Assoc
-from library.database import DatabaseType
+from modules.assocs import Assoc
+from packages.database.database import DatabaseType
 
 class Client:
     def __init__(self, fileName):

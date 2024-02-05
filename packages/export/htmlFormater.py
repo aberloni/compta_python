@@ -7,9 +7,9 @@
 from datetime import datetime
 import calendar
 
-from library.database import Assoc
-from library.database import DatabaseType
-from library.path import Path
+from modules.assocs import Assoc
+from modules.path import Path
+from packages.database.database import Database, DatabaseType
 
 def wrapAssoc(id, label, value, wrapClass = ""):
     
@@ -280,7 +280,7 @@ def generateHtml(project, bill, exportFileName):
     # saving
     html = wrapSection("html", html)
 
-    exportPath = Path.getExportBillingFolder()
+    exportPath = Database.getExportBillingFolder()
     f = open(exportPath + exportFileName + ".html", "w")
     f.write(html)
     f.close()

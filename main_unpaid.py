@@ -1,5 +1,6 @@
 """
-    display tracking info
+    WIP
+    show unpaid bills & amounts
 """
 
 import locale

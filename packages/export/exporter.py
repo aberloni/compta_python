@@ -1,6 +1,9 @@
 import os
 import configs
 
+from packages.export.htmlFormater import *
+from modules.path import Path
+    
 def clearExportFolder():
     path = getLocalPath()
     path += configs.pathExport
@@ -32,10 +35,6 @@ def exportBills(project):
     
 
 def exportBill(project, bill):
-
-    import library.htmlFormater
-    import library.system
-    from library.path import Path
 
     billFuid = bill.getBillFullUid()
 
@@ -70,7 +69,7 @@ def exportBill(project, bill):
 
     # GENERATE HTML
 
-    library.htmlFormater.generateHtml(project, bill, billFileName)
+    generateHtml(project, bill, billFileName)
 
     # [drive]:\[path_to_cloned_folder\
     # print(localPath)

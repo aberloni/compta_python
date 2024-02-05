@@ -1,3 +1,5 @@
+from modules.system import *
+
 class Path:
 
     localDatabase = False
@@ -9,24 +11,17 @@ class Path:
     # in : abs path to lnk
     # out : abs path
     def getLnkPath(pathLnk):
-        import library.system
         
         if not pathLnk.endswith(".lnk"):
             pathLnk += ".lnk"
 
-        absPath = library.system.getExtractShkPath(pathLnk)
+        absPath = getExtractShkPath(pathLnk)
 
         #print(pathLnk)
         #print(absPath)
 
         return absPath
 
-    # in : dbType
-    # out : abs path to database/type/
-    @staticmethod
-    def getPathDbType(dbType):
-        return Path.getDbTypePath(dbType.name)
-    
     @staticmethod
     def getDbPath():
         return Path.getLnkPath(Path.shkExternal)+"database/"
@@ -48,10 +43,9 @@ class Path:
     """
     @staticmethod
     def getLinesFromDbType(dbType, fileNameExt):
-        import library.system
         path = Path.getDbTypePath(dbType)
         path += fileNameExt
-        return library.system.loadFileUTF(path)
+        return loadFileUTF(path)
     
     """
     in : lnk name within database path
@@ -62,53 +56,39 @@ class Path:
     
     @staticmethod
     def getLinesDbFile(fileNameExt):
-        import library.system
         path = Path.getDbPath()
         path += fileNameExt
-        return library.system.loadFileUTF(path)
+        return loadFileUTF(path)
     
     """
     exported from bank website
     """
     @staticmethod
     def getLinesFromStatement(fileNameExt):
-        from library.database import DatabaseType
-        import library.system
+        from packages.database.database import DatabaseType
         
         path = Path.getDbTypePath(DatabaseType.statements)
         path += fileNameExt
 
         #print("lines from @ "+path)
 
-        return library.system.loadFile(path)
+        return loadFile(path)
     
 
     @staticmethod
     def getAllFilesFromLnk(absPathLnk):
-        import library.system
         
         # returns the actual folder path of that link
         path = Path.getLnkPath(absPathLnk)
 
-        return library.system.getAllFilesInFolder(path)
+        return getAllFilesInFolder(path)
 
     @staticmethod
     def getAllFilesFromDbType(dbType):
-        import library.system
         
         # returns the actual folder path of that link
         path = Path.getDbTypePath(dbType)
         
         #print("fetching files @"+path)
 
-        return library.system.getAllFilesInFolder(path)
-
-
-
-    @staticmethod
-    def getExportStatementsFolder():
-        return Path.getExportFolderPath()+"statements/"
-
-    @staticmethod
-    def getExportBillingFolder():
-        return Path.getExportFolderPath()+"billings/"
+        return getAllFilesInFolder(path)

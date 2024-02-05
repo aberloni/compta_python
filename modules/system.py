@@ -1,4 +1,3 @@
-import configs
 import os
 from datetime import datetime
 
@@ -92,7 +91,7 @@ def loadFileUTF(path):
 load a file from db type folders
 """
 def loadFileByDbType(dbType, fileNameExt):
-    from path import Path
+    from modules.path import Path
     path = Path.getDbTypePath(dbType)+"_"+fileNameExt
 
     f = open(path, "r")
@@ -151,7 +150,7 @@ def getAllFilesInFolder(absPath):
     import glob
 
     files = glob.glob(absPath+"*")
-
+    
     #print(files)
     
     return files
