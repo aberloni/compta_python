@@ -25,28 +25,40 @@ class Creditor:
             key = key.replace("\\","/") 
             key = key[key.rfind("/")+1:]
             
-            self.filters[key] = self.solveContent(file)
+            if key == "misc": # edge case
+                content = loadFile(file)
+                for c in content:
+                    values = c.split(":")
+                    key = values[0]
+                    val = values[1]
+                    
+                    if type(val) != list:
+                        val = [val]
+                    
+                    # key:val
+                    self.filters[key] = val
+            else: # normal flow, each files
+                content = self.solveContent(file)
+                print(content)
+                self.filters[key] = content
 
-        print(self.filters)
+        print("filters x", len(self.filters))
+        for k in self.filters:
+            print(k)
+            print(self.filters[k])
 
     def solveContent(self, file):
 
-        blob = {}
-
         content = loadFile(file)
-        print(content)
 
         list = []
         for c in content:
             values = []
-            if ":" in c:
-                values = c.split(":")
+            if "," in c:
+                values = c.split(",")
             else:
                 values.append(c)
             
             list.append(values)
-
-        blob["content"] = list
-        blob["location"] = ""
-
-        return blob
+        
+        return list
