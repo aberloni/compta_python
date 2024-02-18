@@ -51,6 +51,7 @@ class Path:
     in : lnk name within database path
     out : abs path
     """
+    @staticmethod
     def getDbTypePath(dbType):
         return Path.getDbPath() + dbType.name+"/"
     
@@ -60,21 +61,6 @@ class Path:
         path += fileNameExt
         return loadFileUTF(path)
     
-    """
-    exported from bank website
-    """
-    @staticmethod
-    def getLinesFromStatement(fileNameExt):
-        from packages.database.database import DatabaseType
-        
-        path = Path.getDbTypePath(DatabaseType.statements)
-        path += fileNameExt
-
-        #print("lines from @ "+path)
-
-        return loadFile(path)
-    
-
     @staticmethod
     def getAllFilesFromLnk(absPathLnk):
         

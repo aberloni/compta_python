@@ -5,31 +5,31 @@ bank, date, amount, currency
 
 from datetime import datetime
 from packages.database.database import DatabaseType
-from modules.path import Path
+import modules.system
+import os
 
 class BankLogs:
 
     const_pending = "pending"
 
-    def __init__(self, fileNameExt):
+    def __init__(self, filePath):
 
+        fileName = os.path.basename(filePath)
+        lines = modules.system.loadFile(filePath)
         
-
         #print("STATEMENT @"+fileNameExt)
+        #print(fileName)
         
-        datas = fileNameExt.split("_")
+        if lines == None:
+            print("[error] no lines @ statements:"+fileName)
+            return
 
+        datas = fileName.split("_")
+
+        self.uid = fileName
         self.bank = datas[0]
         self.dtStart = datas[1]
-
-        #lines = library.system.loadFile(fileName)
-        lines = Path.getLinesFromStatement(fileNameExt)
-
-        if lines == None:
-            print("[error] no lines @ statements:"+fileNameExt)
-
-        self.uid = fileNameExt
-
+        
         #print("generating "+fileNameExt)
 
         self.statements = []
@@ -38,7 +38,7 @@ class BankLogs:
             if not l[0].isnumeric():
                 continue
             
-            st = Statement(fileNameExt, self.bank, l)
+            st = Statement(fileName, self.bank, l)
             self.statements.append(st)
 
         #print("statement @"+fileNameExt+" x", len(self.statements))
@@ -75,6 +75,7 @@ class Statement:
         self.amount = 0
         self.currency = None
 
+        # solving label & labels
         if "sg" in self.bank:
             self.solveSG(line)
         elif "helios" in self.bank:
@@ -85,7 +86,7 @@ class Statement:
         # solve what creditor is assoc to this transaction
         #self.creancier = Database.instance.creanciers.filterKeyContains(self.label)
         
-        self.creditor = Database.instance.creditors.solveCreditorOfLabel(self.label)
+        self.creditor = Database.instance.creditors.solveCreditorOfLabel(self.labels)
         
         if not self.hasCreditor():
             print("\nUNKNOWN : "+self.label)
@@ -102,7 +103,8 @@ class Statement:
         
         self.date = datetime.strptime(datas[0], "%d/%m/%Y")
         
-        self.label = datas[2]+" "+datas[3]+" "+datas[4]
+        self.label = datas[2]
+        self.labels = datas[2]+" "+datas[3]+" "+datas[4]
         
         self.amount = round(float(datas[6]), 2)
         self.currency = "EUR"
@@ -150,15 +152,18 @@ class Statement:
     def logUnknown(self):
         self.log()
         
+        print("raw : "+self.line)
+        
         search = self.label.replace(" ","+")
 
         print("google ? https://www.google.com/search?q="+search)
         print("maps   ? https://www.google.com/maps/search/"+search)
 
     def log(self):
+        
         output = str(self.date)
         
-        output += "  >> "+self.bank+ " & "+self.context+" >>   "
+        output += " >> "+self.bank+ " & "+self.context+" >>   "
         output += "     €"+str(self.amount)
 
         if self.hasCreditor():

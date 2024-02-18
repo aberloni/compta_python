@@ -137,6 +137,7 @@ class Database:
 
     def fetch_clients(self):
         from packages.database.client import Client
+        
         files = Path.getAllFilesFromDbType(DatabaseType.clients)
         output = []
         for c in files:
@@ -159,12 +160,35 @@ class Database:
         
     def fetch_statements(self):
         from packages.database.statements import BankLogs
-        files = Path.getAllFilesFromDbType(DatabaseType.statements)
+        import modules.system
+        
+        # files = Path.getAllFilesFromDbType(DatabaseType.statements)
+        
         output = []
-        for c in files:
-            tmp = BankLogs(os.path.basename(c))
-            if c != None:
+        
+        path = Path.getDbTypePath(DatabaseType.statements)
+        #print(path)
+        
+        bankFolders = modules.system.getAllFilesInFolder(path)
+        for b in bankFolders:
+            
+            b = b + "/"
+            print(b)
+            
+            files = modules.system.getAllFilesInFolder(b)
+            if len(files) <= 0:
+                print(" ? no statements files in folder : "+b)
+                continue
+            
+            print("x"+str(len(files)))
+            
+            for filePath in files:
+                
+                # print(b+" >> "+c)
+                tmp = BankLogs(filePath)
                 output.append(tmp)
+        
+        print("statements x"+str(len(output)))
         
         self.statements = output
         

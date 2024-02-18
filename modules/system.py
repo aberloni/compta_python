@@ -141,6 +141,7 @@ def getExtractShkPath(path):
     return target+"/"
 
 """
+in  : path must have last /
 out : array of files within that folder
 """
 def getAllFilesInFolder(absPath):

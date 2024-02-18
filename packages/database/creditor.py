@@ -146,6 +146,7 @@ class CreditorFilterEntry:
         
         label = label.lower()
         
+        # check in the complexe label
         result = self.label in label
         
         # print(self.label+"      in : "+label+" ? "+str(result))
