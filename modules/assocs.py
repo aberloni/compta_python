@@ -1,14 +1,15 @@
 
 import configs
-from modules.system import *
+#from modules.system import *
+from modules.logger import *
 from modules.path import *
 
 """
 a file from the database
-that can be parsed as a series of KEY:VALUE
+that can be parsed as a series of KEY:VALUE,VALUE,VALUE
 
 params :
-    dbType is subfolder/
+    dbType is name of any subfolder/ of database/
 """
 class Assoc:
 
@@ -66,7 +67,7 @@ class Assoc:
     def filterKey(self, key):
 
         if self.entries == None:
-            library.system.error("no entries on Assoc@"+self.fileName)
+            logError("no entries on Assoc@"+self.fileName)
             return None
         
         for e in self.entries:

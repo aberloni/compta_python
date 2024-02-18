@@ -25,23 +25,29 @@ class Database:
     def getExportBillingFolder():
         return Path.getExportFolderPath()+"billings/"
 
+
+    """
+    database init   : labels
+    """
     @staticmethod
-    def tracking():
+    def init_labels():
 
         from packages.database.creditor import Creditor
-        from modules.assocs import Assoc
-
-        instance = Database.billing()
-
-        instance.creditos = Creditor()
-        instance.creanciers = Assoc("creanciers")
         
-        instance.solveStatements()
+        instance = Database()
 
+        instance.creditors = Creditor() # all labels to match statem transactions
+        instance.fetch_statements() # bank statements
+        
+        #print("imported x", len(instance.statements))
+        
         return instance
     
+    """
+    database init   : billing
+    """
     @staticmethod
-    def billing():
+    def init_billing():
         
         # from os import walk
 
@@ -52,12 +58,7 @@ class Database:
         instance.solveProjects()
 
         return instance
-
-    def solveStatements(self):
-        self.statements = self.fetch(DatabaseType.statements)
-        #print("imported x", len(self.statements))
-
-
+    
     def solveClients(self):
 
         # -clients
@@ -133,44 +134,40 @@ class Database:
             print("no project # "+projectUid)
 
 
-    """
-    will create an array of matching dbType class
-    """
-    def fetch(self, dbType):
-        
+
+    def fetch_clients(self):
         from packages.database.client import Client
-        from packages.database.project import Project
-        from modules.path import Path
-        from packages.database.statements import BankLogs
-
-        files = Path.getAllFilesFromDbType(dbType)
-        # files = self.fetchFiles(dbType)
-
+        files = Path.getAllFilesFromDbType(DatabaseType.clients)
         output = []
         for c in files:
-            tmp = None
-
-            c = os.path.basename(c)
-            # remove path
-            # c = c[-c.rfind("\\")]
-
-            if self.verbose:
-                print("db::fetch("+dbType.name+") @ "+c)
-
-            if dbType == DatabaseType.clients:
-                tmp = Client(c)
-            elif dbType == DatabaseType.projects:
-                tmp = Project(c)
-            elif dbType == DatabaseType.statements:
-                tmp = BankLogs(c)
-            
+            tmp = Client(os.path.basename(c))
             if c != None:
                 output.append(tmp)
+        
+        self.clients = output
 
-        # print("loaded "+dbType.name+" x"+str(len(output)))
-        return output
-
-
+    def fetch_projects(self):
+        from packages.database.project import Project
+        files = Path.getAllFilesFromDbType(DatabaseType.projects)
+        output = []
+        for c in files:
+            tmp = Project(os.path.basename(c))
+            if c != None:
+                output.append(tmp)
+        
+        self.projects = output
+        
+    def fetch_statements(self):
+        from packages.database.statements import BankLogs
+        files = Path.getAllFilesFromDbType(DatabaseType.statements)
+        output = []
+        for c in files:
+            tmp = BankLogs(os.path.basename(c))
+            if c != None:
+                output.append(tmp)
+        
+        self.statements = output
+        
     def fetchFiles(self, dbType):
         # self.clients
         output = []

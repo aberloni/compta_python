@@ -155,12 +155,3 @@ def getAllFilesInFolder(absPath):
     
     return files
 
-
-def log(log):
-    print(log)
-
-def warning(log):
-    print("     [WARNING] "+log)
-
-def error(log):
-    print("     [ERROR] "+log)

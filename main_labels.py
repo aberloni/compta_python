@@ -13,24 +13,30 @@ import os
 from packages.database.database import Database
 
 # load all data
-db = Database.tracking()
+db = Database.init_labels()
 
 # do something with it
 #print(db)
-
 exit()
-
 
 print("\n\n")
 print(" ... logging unknown statements labels")
 
-for sf in db.statements:
+cnt = 10
+
+for sf in db.statements: # each banklogs
 
     print(f"{sf.uid} x{len(sf.statements)}")
 
-    for s in sf.statements:
-        if not s.hasCreancier():
+    for s in sf.statements: # each line
+        
+        if not s.hasCreditor():
             s.logUnknown()
+            cnt = cnt-1
+        
+        if cnt < 0:
+            exit("limit")
+        
 
 
 # export/dump result

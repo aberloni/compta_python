@@ -3,7 +3,6 @@ Sort all data extracted from bank listings
 bank, date, amount, currency
 """
 
-
 from datetime import datetime
 from packages.database.database import DatabaseType
 from modules.path import Path
@@ -39,7 +38,7 @@ class BankLogs:
             if not l[0].isnumeric():
                 continue
             
-            st = Statement(self.bank, l)
+            st = Statement(fileNameExt, self.bank, l)
             self.statements.append(st)
 
         #print("statement @"+fileNameExt+" x", len(self.statements))
@@ -64,10 +63,12 @@ class BankLogs:
         return output
     
 class Statement:
-    def __init__(self, bank, line):
+    def __init__(self, contextFile, bank, line):
 
         from packages.database.database import Database
 
+        self.context = contextFile
+        
         self.bank = bank
         self.line = line
 
@@ -81,14 +82,28 @@ class Statement:
         else:
             print("(WARNING) bank not known : "+bank)
 
-        self.creancier = Database.instance.creanciers.filterKeyContains(self.label)
-
+        # solve what creditor is assoc to this transaction
+        #self.creancier = Database.instance.creanciers.filterKeyContains(self.label)
+        
+        self.creditor = Database.instance.creditors.solveCreditorOfLabel(self.label)
+        
+        if not self.hasCreditor():
+            print("\nUNKNOWN : "+self.label)
+            self.logUnknown()
+            
+            exit("(STOP) first unknown")
+        
     def solveHelios(self, line):
 
         datas = line.split(";")
 
+        # date; null; Steam Purchase; payment type; category; category; amount
+        self.line = line
+        
         self.date = datetime.strptime(datas[0], "%d/%m/%Y")
-        self.label = datas[2]
+        
+        self.label = datas[2]+" "+datas[3]+" "+datas[4]
+        
         self.amount = round(float(datas[6]), 2)
         self.currency = "EUR"
 
@@ -129,26 +144,28 @@ class Statement:
 
         return self.date >= dtStart and self.date <= dtEnd
 
-    def hasCreancier(self):
-        return self.creancier is not None        
+    def hasCreditor(self):
+        return self.creditor is not None        
 
     def logUnknown(self):
         self.log()
         
         search = self.label.replace(" ","+")
 
-        print("https://www.google.com/search?q="+search+" , https://www.google.com/maps/search/"+search)
+        print("google ? https://www.google.com/search?q="+search)
+        print("maps   ? https://www.google.com/maps/search/"+search)
 
     def log(self):
         output = str(self.date)
         
+        output += "  >> "+self.bank+ " & "+self.context+" >>   "
         output += "     €"+str(self.amount)
 
-        if self.creancier is not None:
-            output += "     @"+str(self.creancier.value)
+        if self.hasCreditor():
+            output += "     creditor:"+str(self.creditor.value)
         else:
             output += "     [unknown]"
         
-        output += "     &"+self.label
+        output += "     label:"+self.label
 
         print(output)
