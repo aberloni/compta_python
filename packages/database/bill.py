@@ -10,7 +10,7 @@ date de facturation:{start},{end}|montant fixe
 
 class Bill:
     
-    verbose = False
+    verbose = True
 
     def __init__(self, project, uid, billHeader):
         
@@ -52,10 +52,13 @@ class Bill:
         self.log("    bill range : "+_dtSplit[0]+" -> "+_dtSplit[1])
 
         self.start = datetime.strptime(_dtSplit[0], "%Y-%m-%d")
-        self.end = datetime.strptime(_dtSplit[1], "%Y-%m-%d")
-        
-        
 
+        # date must be valid
+        try:
+            self.end = datetime.strptime(_dtSplit[1], "%Y-%m-%d")
+        except ValueError:
+            print("ERROR : invalid date : ",_dtSplit[1])
+            
         self.tasks = []
         for t in self.project.tasks:
             if t.isDateRange(self.start, self.end):

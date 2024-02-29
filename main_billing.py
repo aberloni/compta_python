@@ -14,7 +14,7 @@ from packages.database.database import Database
 
 # loading DB
 
-db = Database.billing()
+db = Database.init_billing()
 
 from packages.export.exporter import *
 import modules.system

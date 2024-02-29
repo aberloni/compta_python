@@ -53,20 +53,18 @@ class Database:
 
         instance = Database()
 
-        instance.solveClients()
+        instance.fetch_clients()
         instance.solveTasks()
         instance.solveProjects()
 
         return instance
     
-    def solveClients(self):
-
-        # -clients
-        self.clients = self.fetch(DatabaseType.clients)
-    
     def solveProjects(self):
+        
+        #self.solveClients()
 
-        self.projects = self.fetch(DatabaseType.projects)
+        self.fetch_projects()
+        
         for p in self.projects:
             p.assignTasks(self.tasks)
 
@@ -107,6 +105,10 @@ class Database:
 
         if not hasattr(self, "clients"):
             print("no clients[]?")
+            return None
+
+        if self.clients is None:
+            print("clients[] is None ?")
             return None
 
         for p in self.clients:
