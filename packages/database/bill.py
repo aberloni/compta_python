@@ -136,6 +136,7 @@ class Bill:
     def getHT(self, Ym = None):
         return self.countDays(Ym) * self.project.getTaux()
 
+    # percentage of TVA to apply
     def getTVA(self):
         return float(self.project.assoc.filterKey("tva"))
     
