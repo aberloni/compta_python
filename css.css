@@ -75,7 +75,7 @@ hr
 {
     background-color: var(--bgInvert);
     color: var(--fcInvert);
-    font-size: 1em;
+    font-size: 0.9em;
     font-weight: bold;
     height: 75px;
 }
@@ -96,6 +96,7 @@ hr
 #infos
 {
     padding:10px 5%;
+    font-size:0.8em;
 }
 
 #infos div
@@ -125,6 +126,7 @@ hr
     background-color: var(--bgShade);
     color: var(--fcShade);
     padding: 20px 0px;
+    font-size: 0.9em;
 }
 
 #client-title
@@ -232,7 +234,7 @@ hr
 #tasks-lines
 {
     margin:10px 0px;
-    font-size: 0.8em;
+    font-size: 0.75em;
 }
 
 /* TOTAL */
@@ -287,7 +289,8 @@ hr
 
 #rib
 {
-    margin:3% 10%;
+    margin:10px 10%;
+    font-size:0.8em;
 }
 
 #rib span
@@ -328,7 +331,7 @@ hr
 {
     background-color: var(--bgInvert);
     color:var(--fcInvert);
-    font-size:1.1em;
+    font-size:0.9em;
     padding:25px 10%;
 }
 
