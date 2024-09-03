@@ -5,6 +5,7 @@ import configs
 
 from modules.path import Path
 
+# define : database enum
 DatabaseType = Enum('DatabaseType', ["bills", "infos","clients", "projects", "tasks", "statements", "creditors"])
 
 class Database:
@@ -170,7 +171,7 @@ class Database:
         path = Path.getDbTypePath(DatabaseType.statements)
         #print(path)
         
-        self.statements = []
+        self.bankLogs = []
 
         # each bank folders within statements
         bankFolders = modules.system.getAllFilesInFolder(path)
@@ -191,9 +192,22 @@ class Database:
                 
                 # print(b+" >> "+c)
                 tmp = BankLogs(filePath)
-                self.statements.append(tmp)
+                self.bankLogs.append(tmp)
         
-        print("total statements x"+str(len(self.statements)))
+        print("total bank logs x"+str(len(self.bankLogs)))
+
+        # for each line within banklogs
+        # adds uniq statements (won't be ordered by date)
+        self.statements = []
+        for b in self.bankLogs:
+            for s in b.statements:
+                if not self.hasStatement(s):
+                    self.statements.append(s)
+        
+    def hasStatement(self, st):
+        for s in self.statements:
+            if s.compare(st): return True
+        return False
         
     def fetchFiles(self, dbType):
         # self.clients
@@ -230,8 +244,6 @@ class Database:
 
         for p in self.projects:
             bills = p.getBills()
-
-            
 
             for b in bills:
                 ttc = b.getTTC()

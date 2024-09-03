@@ -3,6 +3,9 @@ from modules.path import Path
 from modules.system import *
 
 """
+    wrapper around all .cred files
+    gather all labels sorted by keys
+
     misc.cred     --> label:category,info
     category.cred --> label,info
 
@@ -49,21 +52,30 @@ class Creditor:
     """
     give a statement label returns matching creditor uid
     """
-    def solveCreditorOfLabel(self, statementLabel):
+    def solveCreditorOfLabel(self, labels):
         
-        statementLabel = statementLabel.lower()
+        if type(labels) is not list:
+            print("labels must be a list[]")
+            return None
         
-        # print("checking "+statementLabel+" against x"+str(len(self.filters))+" filters");
+        if len(labels) <= 0:
+            print("given statement label is empty | null ?")
+            return None
         
-        for uid in self.filters: 
+        for label in labels:
+            label = label.lower()
             
-            filter = self.filters[uid]
-            # print(filter)
-            #print(type(filter))
+            # print("checking "+statementLabel+" against x"+str(len(self.filters))+" filters");
             
-            if filter.match(statementLabel):
-                return uid
-            
+            for uid in self.filters: 
+                
+                filter = self.filters[uid]
+                # print(filter)
+                #print(type(filter))
+                
+                if filter.match(label):
+                    return uid
+        
         return None
 
     """

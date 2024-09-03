@@ -3,45 +3,28 @@
     display some data based on statements from bank
 """
 
+import os
+
+from datetime import datetime
+
 import locale
 locale.setlocale(locale.LC_ALL, 'fr_FR')
 
 # DATABASE LOADER
 
-import os
-
 from packages.database.database import Database
+from modules.viewer import Viewer
 
 # load all data
 db = Database.init_labels()
 
-# do something with it
-#print(db)
-exit()
+dtStart = "2024-01-01"
+dtEnd = "2024-08-31"
 
-print("\n\n")
-print(" ... logging unknown statements labels")
+print("from : "+dtStart+"       to : "+dtEnd)
 
-cnt = 10
-
-for sf in db.statements: # each banklogs
-
-    print(f"{sf.uid} x{len(sf.statements)}")
-
-    for s in sf.statements: # each line
-        
-        if not s.hasCreditor():
-            s.logUnknown()
-            cnt = cnt-1
-        
-        if cnt < 0:
-            exit("limit")
-        
-
-
-# export/dump result
-
-#path = Path.getExportStatementsFolder()
-#os.startfile(path)
+view = Viewer()
+view.solve(db, dtStart, dtEnd)
+view.log(100)
 
 exit()
