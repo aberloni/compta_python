@@ -8,6 +8,9 @@ from packages.database.database import DatabaseType
 import modules.system
 import os
 
+"""
+all statements form a specific bank file
+"""
 class BankLogs:
 
     const_pending = "pending"
@@ -15,6 +18,8 @@ class BankLogs:
     def __init__(self, filePath):
 
         fileName = os.path.basename(filePath)
+        self.uid = fileName
+
         lines = modules.system.loadFile(filePath)
         
         #print("STATEMENT @"+fileNameExt)
@@ -24,13 +29,9 @@ class BankLogs:
             print("[error] no lines @ statements:"+fileName)
             return
 
-        datas = fileName.split("_")
-
-        self.uid = fileName
-        self.bank = datas[0]
-        self.dtStart = datas[1]
-        
-        #print("generating "+fileNameExt)
+        # extract bank from file path : parent folder name
+        self.extractBank(filePath, fileName)
+        self.extractStartDt(fileName)
 
         self.statements = []
         for l in lines:
@@ -43,6 +44,45 @@ class BankLogs:
 
         #print("statement @"+fileNameExt+" x", len(self.statements))
 
+    def extractStartDt(self, fileName):
+        
+        fileName = fileName[:-4] # remove ext
+
+        # releve-mensuel-12-2023
+        datas = fileName.split("-")
+
+        if len(datas) < 2:
+            print("issue @ "+fileName+" ? DT")
+            return
+
+        date = datas[3]         # year
+        date += "-"+datas[2]    # month
+        date += "-01"
+
+        # yyyy-mm-dd
+        self.dtStart = date
+        
+        #print("statement startdt : "+self.dtStart)
+
+
+    def extractBank(self, filePath, fileName):
+
+        # https://www.freecodecamp.org/news/how-to-substring-a-string-in-python/
+        folder = filePath[:filePath.index(fileName) - 1]
+        #print(folder)
+
+        #idx = folder.rfind("\\")print(idx)
+        folder = folder[folder.rfind("\\") + 1:]
+        #print(folder)
+
+        self.bank = folder
+
+        #print("statement bank?"+self.bank)
+
+
+    def isValid(self):
+        return len(self.statements) > 0
+    
     def countPositives(self, start, end):
         positives = self.getPositives(start, end)
         cnt = 0
@@ -62,6 +102,9 @@ class BankLogs:
 
         return output
     
+"""
+one line within a bank file
+"""
 class Statement:
     def __init__(self, contextFile, bank, line):
 
@@ -75,7 +118,7 @@ class Statement:
         self.amount = 0
         self.currency = None
 
-        # solving label & labels
+        # solving labels
         if "sg" in self.bank:
             self.solveSG(line)
         elif "helios" in self.bank:

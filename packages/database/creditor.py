@@ -91,6 +91,9 @@ class Creditor:
         lines = loadFile(file)
         
         for l in lines:
+            if "#" in l:
+                continue
+
             self.appendLabel(key, l)
         
     """
@@ -99,9 +102,11 @@ class Creditor:
     """
     def appendLabel(self, key, label):
         
+        # not yet in filters
         if not key in self.filters:
             self.filters[key] = CreditorFilter(key, [])
         
+        # add label to filter
         self.filters[key].append(label)
 
 """
@@ -134,6 +139,7 @@ all values assocs with a filter's entry
 """
 class CreditorFilterEntry:
     def __init__(self, values):
+
         if type(values) is list:
             self.values = values
         else:
@@ -146,8 +152,8 @@ class CreditorFilterEntry:
         
         label = label.lower()
         
-        # check in the complexe label
+        # "in" (contains)
         result = self.label in label
         
-        # print(self.label+"      in : "+label+" ? "+str(result))
+        #print(self.label+" >> is in : "+label+" ? "+str(result))
         return result

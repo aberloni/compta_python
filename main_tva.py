@@ -20,9 +20,16 @@ from packages.export.exporter import *
 import modules.system
 from modules.path import Path
 
+if len(db.projects) <= 0:
+    print("no project ?")
+    exit()
 
 for p in db.projects:
     bills = p.getBills()
+
+    if len(bills) <= 0:
+        print("no billing ?")
+
     for b in bills:
 
         ht = b.getHT()

@@ -166,33 +166,34 @@ class Database:
         
         # files = Path.getAllFilesFromDbType(DatabaseType.statements)
         
-        output = []
-        
+        # path to statements/
         path = Path.getDbTypePath(DatabaseType.statements)
         #print(path)
         
+        self.statements = []
+
+        # each bank folders within statements
         bankFolders = modules.system.getAllFilesInFolder(path)
         for b in bankFolders:
             
             b = b + "/"
-            print(b)
+            print("bank : "+b)
             
+            # each statements files for a given bank
             files = modules.system.getAllFilesInFolder(b)
             if len(files) <= 0:
                 print(" ? no statements files in folder : "+b)
                 continue
             
-            print("x"+str(len(files)))
+            print("found x"+str(len(files))+" files")
             
             for filePath in files:
                 
                 # print(b+" >> "+c)
                 tmp = BankLogs(filePath)
-                output.append(tmp)
+                self.statements.append(tmp)
         
-        print("statements x"+str(len(output)))
-        
-        self.statements = output
+        print("total statements x"+str(len(self.statements)))
         
     def fetchFiles(self, dbType):
         # self.clients
