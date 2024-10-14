@@ -237,7 +237,7 @@ def generateContact():
 
 
 def generateHtml(project, bill, exportFileName):
-    print("---HTML GENERATOR---")
+    #print("---HTML GENERATOR---")
     
     if project == None:
         print("no project ?")
@@ -277,7 +277,7 @@ def generateHtml(project, bill, exportFileName):
 
     html += wrapSection("body", body)
 
-    # saving
+    # final wrapping
     html = wrapSection("html", html)
 
     exportPath = Database.getExportBillingFolder()
@@ -285,4 +285,4 @@ def generateHtml(project, bill, exportFileName):
     f.write(html)
     f.close()
 
-    print("generated HTML : "+exportFileName)
+    print("     generated HTML : "+exportFileName)

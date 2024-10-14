@@ -14,6 +14,8 @@ from packages.database.database import Database
 
 # loading DB
 
+print("=== INIT BILLING")
+
 db = Database.init_billing()
 
 from packages.export.exporter import *
@@ -21,12 +23,15 @@ import modules.system
 
 from modules.path import Path
 
-print("=== EXPORTING BILLS")
+qty = len(db.projects)
+
+print("=== SOLVING "+str(qty)+" PROJECTS")
 
 for p in db.projects:
     #curProject = db.getProject(p)
     
-    print("=== EXPORT BILLS PROJECT : "+p.uid)
+    print("\n\n=== PROJECT ===>         "+p.uid)
+
     exportBills(p)
 
 if configs.openBillingFolder:
@@ -35,5 +40,5 @@ if configs.openBillingFolder:
     print("open folder @ "+path)
     os.startfile(path)
 
-print("done")
+print("export.bills.done")
 exit()

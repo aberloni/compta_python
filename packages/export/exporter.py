@@ -24,6 +24,9 @@ def exportBills(project):
 
     bills = project.getBills()
 
+    cnt = len(bills)
+    print("project has x"+str(cnt)+" bills");
+
     if len(bills) <= 0:
         
         print(" /! no bills for "+project.uid)
@@ -38,28 +41,26 @@ def exportBill(project, bill):
 
     billFuid = bill.getBillFullUid()
 
-    print("\n\n === NOW EXPORTING BILL "+bill.uid+" # "+billFuid)
+    print("     export.bill uid:"+bill.uid+" , fuid:"+billFuid)
 
     if billFuid == None:
         print("none fuid : "+bill.uid)
         return
 
+    # folder export path
     exportPath = Path.getExportBillingPath()
-    print("export path @ "+exportPath)
+    #print("     bill.path @ "+exportPath)
 
-    #localPath = getLocalPath()
-
+    # export file name
     billFileName = billFuid+"_"+project.client.uid+"_"+project.uid
 
-    #print(" === TARGET FILE === > "+billFileName)
-    # DUMP
-
+    # GENERATE DUMP FILE
     pathDump = exportPath+billFileName+".dump"
     f = open(pathDump, "w")
     f.write(bill.dump())
     f.close()
     
-    print("saved dump @ "+pathDump)
+    #print("saved dump @ "+pathDump)
 
     if configs.openBillingDumpFile:
         print("opening dump @ "+pathDump)

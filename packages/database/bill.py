@@ -10,7 +10,7 @@ date de facturation:{start},{end}|montant fixe
 
 class Bill:
     
-    verbose = True
+    verbose = False
 
     def __init__(self, project, uid, billHeader):
         
@@ -20,14 +20,14 @@ class Bill:
         # data = data[1:-1] # remove []
 
         self.uid = uid # 2023-09-XX
-        
-        self.log("create")
 
+        self.log("      bill.header : "+billHeader)
+        
         # https://stackoverflow.com/questions/6871016/adding-days-to-a-date-in-python
 
+        # get payment limit date
         self.limit = datetime.strptime(self.uid, "%Y-%m-%d")
         self.limit = self.limit + timedelta(days=30)
-        
         self.limit = self.limit.strftime("%Y-%m-%d")
         
         # forfait is | after dates
@@ -49,7 +49,7 @@ class Bill:
 
         # real datetime, not strings
         
-        self.log("    bill range : "+_dtSplit[0]+" -> "+_dtSplit[1])
+        self.log("    bill.range : "+_dtSplit[0]+" -> "+_dtSplit[1])
 
         self.start = datetime.strptime(_dtSplit[0], "%Y-%m-%d")
 
@@ -64,7 +64,7 @@ class Bill:
             if t.isDateRange(self.start, self.end):
                 self.tasks.append(t)
 
-        self.log("    tasks x "+str(len(self.tasks))+" / "+str(len(self.project.tasks)))
+        self.log("    bill.tasks x "+str(len(self.tasks))+" / total in project x "+str(len(self.project.tasks)))
 
     def parseTransaction(self, assoc):
         self.transactions.append(BillTransaction(assoc.key, assoc.value))
@@ -192,7 +192,7 @@ class Bill:
             print("date : "+str(dt)+" match bills x", len(bills))
             print("searching for local bill : "+self.uid)
             print("index #"+str(inc))
-
+        
         if inc < 0:
             return None
 

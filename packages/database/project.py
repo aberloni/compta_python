@@ -55,10 +55,18 @@ class Project:
 
         self.bills = []
         
-        assocs = Assoc("bills_"+self.uid, DatabaseType.bills)
+        path = "bills_"+self.uid
+        #print(path)
 
+        assocs = Assoc(path, DatabaseType.bills)
+
+        print("bill file #"+path)
+        
         bill = None
         for e in assocs.entries:
+
+            print(e.key)
+            print(e.value)
 
             #{YYYY-mm-dd} OR {type}
             type = e.key[0] # first symbol of line
