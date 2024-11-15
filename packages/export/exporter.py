@@ -20,9 +20,16 @@ def getLocalPath():
 
     return localPath
 
-def exportBills(project):
+def exportBills(project, yearsToExport):
 
-    bills = project.getBills()
+    """
+    if yearsToExport != None:
+        print("FILTER YEARS x "+str(len(yearsToExport)))
+        for y in yearsToExport: 
+            print(y)
+    """
+    
+    bills = project.getBills(yearsToExport)
 
     cnt = len(bills)
     print("project has x"+str(cnt)+" bills");
@@ -39,20 +46,20 @@ def exportBills(project):
 
 def exportBill(project, bill):
 
-    billFuid = bill.getBillFullUid()
+    _billFuid = bill.getBillFullUid()
 
-    print("     export.bill uid:"+bill.uid+" , fuid:"+billFuid)
-
-    if billFuid == None:
-        print("none fuid : "+bill.uid)
+    if _billFuid == None:
+        print("could not solve fullUID of bill # "+bill.uid)
         return
+
+    print("     export.bill uid:"+bill.uid+" , fuid:"+_billFuid)
 
     # folder export path
     exportPath = Path.getExportBillingPath()
     #print("     bill.path @ "+exportPath)
 
     # export file name
-    billFileName = billFuid+"_"+project.client.uid+"_"+project.uid
+    billFileName = _billFuid+"_"+project.client.uid+"_"+project.uid
 
     # GENERATE DUMP FILE
     pathDump = exportPath+billFileName+".dump"

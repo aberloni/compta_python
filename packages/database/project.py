@@ -6,6 +6,7 @@ from datetime import datetime
 
 class Project:
 
+    uid = None
     verbose = False
 
     def __init__(self, fileName):
@@ -95,8 +96,22 @@ class Project:
         
         return None
 
-    def getBills(self):
-        return self.bills
+    """
+    given years must be array of int
+    """
+    def getBills(self, filterYears = None):
+        
+        if filterYears == None:
+            return self.bills
+        
+        ret = []
+        
+        for b in self.bills:
+            for y in filterYears:
+                if b.isYear(y) :
+                    ret.append(b)
+                
+        return ret
 
     def getWeekBills(self, date):
         output = []

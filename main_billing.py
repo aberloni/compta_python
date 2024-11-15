@@ -14,7 +14,7 @@ from packages.database.database import Database
 
 # loading DB
 
-print("=== INIT BILLING")
+print("=== INIT DB : BILLING")
 
 db = Database.init_billing()
 
@@ -32,13 +32,16 @@ for p in db.projects:
     
     print("\n\n=== PROJECT ===>         "+p.uid)
 
-    exportBills(p)
+    exportBills(p, configs.billingYears)
+
+print("export.bills.done")
 
 if configs.openBillingFolder:
     path = Path.getExportBillingPath()
 
     print("open folder @ "+path)
+    
     os.startfile(path)
 
-print("export.bills.done")
+print("done")
 exit()

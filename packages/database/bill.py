@@ -10,8 +10,10 @@ date de facturation:{start},{end}|montant fixe
 
 class Bill:
     
-    verbose = False
+    verbose = True
 
+    fullUID = None
+    
     def __init__(self, project, uid, billHeader):
         
         # [UID=>START,END]
@@ -73,23 +75,36 @@ class Bill:
         return len(self.transactions) > 0
             
 
+    # same bill uid && same project uid
+    #
     def compareBill(self, otherBill):
         if self.uid != otherBill.uid:
             return False
         
+        # same UID might be in different projects ?
         if self.project.uid != otherBill.project.uid:
             return False
         
         return True
     
-    def isSameWeek(self, dt):
-        # input = datetime.strftime(str(y)+"-"+str(m), "%Y-%m")
-        # print(self.uid)
+    """
+    given year must be int
+    """
+    def isYear(self, year):
         _dt = datetime.strptime(self.uid, "%Y-%m-%d")
-        _week = _dt.strftime("%W")
+        _year = _dt.strftime("%Y")
+        return int(_year) == int(year)
+    
+    def isSameWeek(self, dt):
+        
+        # this bill date
+        _dt = datetime.strptime(self.uid, "%Y-%m-%d")
+        
+        # same year ?
+        if _dt.strftime("%Y") != dt.strftime("%Y") :
+            return False
 
-        week = dt.strftime("%W")
-        return _week == week
+        return _dt.strftime("%W") == dt.strftime("%W")
         
     def stringify(self):
         
@@ -169,47 +184,65 @@ class Bill:
 
         return output
     
-    """
-    this will generate the full UID of a bill
-    """
-    def getBillFullUid(self):
+    
+    def solveFullUid(self):
         
         from packages.database.database import Database
 
         dt = datetime.strptime(self.uid, "%Y-%m-%d")
         bills = Database.instance.getWeekBills(dt)
-
-        inc = -1
-        
-        for i in range(0,len(bills)):
-            
-            #print("#"+str(i)+" ? "+bills[i].uid+" vs "+self.uid)
-
-            if bills[i].compareBill(self):
-                inc = i
-
-        if self.verbose:
-            print("date : "+str(dt)+" match bills x", len(bills))
-            print("searching for local bill : "+self.uid)
-            print("index #"+str(inc))
-        
-        if inc < 0:
-            return None
-
-        # must inc because first is index 0
-        inc += 1
-
-        if inc < 10:
-            inc = "0"+str(inc)
-        else:
-            inc = str(inc)
         
         week = dt.strftime("%W")
 
+        if self.verbose:
+            print("bill?fullUID    dt: "+str(dt)+" , week: "+str(week))
+            print("total bills this week : "+str(len(bills)))
+        
+        # search for this bill index out of ALL possible bills this week
+        idx = -1
+        for i in range(0,len(bills)):
+            
+            print("     #"+str(i)+" ? "+bills[i].uid+" @ "+bills[i].project.uid)
+            
+            if bills[i].compareBill(self):
+                idx = i
+
+        # not found in project
+        if idx < 0 :
+            print("bill?FUID    "+self.uid+" not found in all bills of week #"+str(week))
+            return None
+        
+        if self.verbose:
+            print("bill:    date : "+str(dt)+" match bills x", len(bills))
+            print("bill:    searching for local bill : "+self.uid)
+            print("bill:    => index #"+str(idx))
+        
+        # using index within this project has base num
+        # must inc because first is index 0
+        # index "0" is bill "_01"
+        idx += 1
+
+        # leading 0X
+        if idx < 10:
+            idx = "0"+str(idx)
+        else:
+            idx = str(idx)
+        
         # to Y-m
         trunc = self.uid.split("-")
         trunc = trunc[0]+"-"+trunc[1]
-        return trunc + "_s"+week+"-"+inc
+        return trunc + "_s"+week+"-"+idx
+    
+    """
+    this will generate the full UID of a bill
+    """
+    def getBillFullUid(self):
+        
+        if self.fullUID == None:
+            self.fullUID = self.solveFullUid()
+            print("=> "+str(self.fullUID))
+        
+        return self.fullUID
 
     def getTimespanMonths(self):
 

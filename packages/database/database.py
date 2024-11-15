@@ -221,10 +221,14 @@ class Database:
         
         return output
 
+    # returns all bills of same week in date
+    # 
     def getWeekBills(self, dt):
         
         bills = []
         for p in self.projects:
+            
+            # get all bills from that project that are in the same given week
             _bills = p.getWeekBills(dt)
 
             # print(p.uid+" & "+str(dt)+" => bills x", len(_bills))
