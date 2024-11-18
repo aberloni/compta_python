@@ -61,15 +61,16 @@ def exportBill(project, bill):
     # export file name
     billFileName = _billFuid+"_"+project.client.uid+"_"+project.uid
 
-    # GENERATE DUMP FILE
-    pathDump = exportPath+billFileName+".dump"
-    f = open(pathDump, "w")
-    f.write(bill.dump())
-    f.close()
+    if configs.createDump:
+        # GENERATE DUMP FILE
+        pathDump = exportPath+billFileName+".dump"
+        f = open(pathDump, "w")
+        f.write(bill.dump())
+        f.close()
     
     #print("saved dump @ "+pathDump)
 
-    if configs.openBillingDumpFile:
+    if configs.openDump :
         print("opening dump @ "+pathDump)
 
         # https://stackoverflow.com/questions/43204473/os-startfile-path-in-python-with-numbers

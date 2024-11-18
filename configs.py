@@ -13,4 +13,6 @@ billingYears = [2024]
 
 openBillingFolder = True
 openBillingHtmlFile = False
-openBillingDumpFile = False
+
+createDump = False
+openDump = False
