@@ -14,6 +14,8 @@ class Bill:
 
     fullUID = None
     
+    label = ""
+    
     def __init__(self, project, uid, billHeader):
         
         # [UID=>START,END]
@@ -68,9 +70,6 @@ class Bill:
 
         self.log("    bill.tasks x "+str(len(self.tasks))+" / total in project x "+str(len(self.project.tasks)))
 
-    def parseTransaction(self, assoc):
-        self.transactions.append(BillTransaction(assoc.key, assoc.value))
-    
     def hasTransactions(self):
         return len(self.transactions) > 0
             

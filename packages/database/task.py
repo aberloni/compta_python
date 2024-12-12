@@ -4,11 +4,18 @@ from modules.system import *
 project:work_date
 project:work_date,>redirect_month
 project:work_date,1/2 1/4
+
+project:work_date,"some label to display"
+
 """
 
 class Task:
 
     verbose = False
+
+    key = None
+    blob = None
+    label = ""
 
     def __init__(self, assoc):
 
@@ -45,6 +52,11 @@ class Task:
                     # https://stackoverflow.com/questions/663171/how-do-i-get-a-substring-of-a-string-in-python
                     self.redirect = val[1:] # remove '>'
                     self.redirect = strToYmd(self.redirect)
+                    
+                if "\"" in val:
+                    val = val[1:] # remove first "
+                    val = val[:-1] # remove last "
+                    self.label = val
             
         pass
 

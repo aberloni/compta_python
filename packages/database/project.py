@@ -1,13 +1,18 @@
 
 from packages.database.database import Database, DatabaseType
+from packages.database.bill import BillTransaction
+
 from modules.assocs import Assoc
 
 from datetime import datetime
+
 
 class Project:
 
     uid = None
     verbose = False
+    
+    label = "" # label of presation (with days count)
 
     def __init__(self, fileName):
         
@@ -64,7 +69,7 @@ class Project:
         print("bill file #"+path)
         
         bill = None
-        for e in assocs.entries:
+        for e in assocs.entries: # each key:value lines
 
             print(e.key)
             print(e.value)
@@ -72,11 +77,21 @@ class Project:
             #{YYYY-mm-dd} OR {type}
             type = e.key[0] # first symbol of line
 
-            if type.isnumeric(): # a bill
+            if type.isnumeric(): # starts with a number = a new bill
+                
                 bill = Bill(self, e.key, e.value)
                 self.bills.append(bill)
-            else: # additionnal fields
-                bill.parseTransaction(e)
+                
+            else:
+                
+                # additionnal fields
+                
+                match e.key:
+                    case "Label":
+                        bill.label = e.value
+                    case "Frais":
+                        bill.transactions.append(BillTransaction(e.key, e.value))
+                        
 
         #print("bill : "+self.uid+" , solved x" ,len(self.bills))
                 

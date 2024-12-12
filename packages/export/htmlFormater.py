@@ -83,6 +83,14 @@ def generateHeader(project):
 
     return output
 
+def generateLabeledTask(date, ht, label):
+    output = "<div id=\"tasks-lines\">"
+    output += "<span class=\"task-date task-value\">"+date+"</span>"
+    output += "<span class=\"task-label task-value\">"+label+"</span>"
+    output += "<span class=\"task-price task-value\">"+str(ht)+"€ HT</span>"
+    output += "</div>"
+    return output
+    
 # task with days
 def generateDaysTask(date, days, ht):
     output = "<div id=\"tasks-lines\">"
@@ -140,7 +148,7 @@ def generateBill(project, bill):
         months = bill.getTimespanMonths()
         
         if len(months) <= 0:
-            exit("need month")
+            exit("issue :    need month")
         
         #print("tasks months x", len(months))
 
@@ -161,10 +169,13 @@ def generateBill(project, bill):
             year = str(dt.year)
             month = str(dt.month)
 
-            htmlMonth = calendar.month_abbr[int(month)]
+            htmlMonth = calendar.month_abbr[int(month)] # nov.
             
-            output += generateDaysTask(htmlMonth+" "+year, cnt, ht)
-    
+            if len(bill.label) > 0:
+                output += generateLabeledTask(htmlMonth+" "+year, ht, bill.label)
+            else:
+                output += generateDaysTask(htmlMonth+" "+year, cnt, ht)
+
     if bill.hasTransactions():
         for t in bill.transactions:
             output += generateTasks(t.getType(), t.label, t.quantity, t.solvePrice())

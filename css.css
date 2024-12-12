@@ -217,12 +217,20 @@ hr
 
 #tasks .task-date
 {
-    min-width:25%;
+    min-width:20%;
+    vertical-align: middle;
 }
 
 #tasks .task-designation
 {
-    min-width: 55%;
+    min-width: 60%;
+    text-align: left;
+}
+#tasks .task-label
+{
+    inline-size: 60%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
     text-align: left;
 }
 
