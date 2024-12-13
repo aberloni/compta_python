@@ -14,7 +14,9 @@ class Bill:
 
     fullUID = None
     
-    label = ""
+    # field filled by parent project
+    label = "" # label of prestation (with days count)
+    designation = "" # label of billing (above days array)
     
     def __init__(self, project, uid, billHeader):
         

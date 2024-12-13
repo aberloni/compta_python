@@ -118,14 +118,18 @@ def generateBill(project, bill):
 
     output += wrapAssoc("bill-header", "FACTURE", bill.getBillFullUid())
 
+    # object title
     output += "<div id=\"bill-object\">"
     output += "<div id=\"bill-object-label\">OBJET</div>"
-
     output += "<span id=\"bill-object-label-dec\">Prestation(s) pour le projet :</span>"
     output += "<span id=\"bill-object-projectName\">"+project.name+"</span>"
-
     output += "</div>"
 
+    # +additionnal designation
+    if len(bill.designation):
+        output += "<span id=\"bill-designation\">"+project.designation+"</span>"
+
+    # array of days and amounts
     output += "<div id=\"tasks\">"
     
     output += "<div id=\"tasks-header\">"

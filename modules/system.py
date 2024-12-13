@@ -71,12 +71,18 @@ def loadFile(path):
     return filterLines(lines)
 
 """
+check if file exists (silenced)
+"""
+def hasFile(path):
+    return os.path.exists(path)
+
+"""
 load all lines of a file
 in : abs path to file /w ext
 """
 def loadFileUTF(path):
 
-    if not os.path.exists(path):
+    if not hasFile(path):
        print("[WARNING] file @ "+path+" does not exists")
        return None
     

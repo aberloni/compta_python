@@ -12,8 +12,6 @@ class Project:
     uid = None
     verbose = False
     
-    label = "" # label of presation (with days count)
-
     def __init__(self, fileName):
         
         self.assoc = Assoc(fileName, DatabaseType.projects)
@@ -59,15 +57,19 @@ class Project:
         from packages.database.database import DatabaseType
         from packages.database.bill import Bill
 
+        # init
+        path = "bills_"+self.uid
         self.bills = []
         
-        path = "bills_"+self.uid
-        #print(path)
-
+        # search for bills linked to this project
+        if not Assoc.has(path, DatabaseType.bills):
+            print("project @"+self.uid+" has no bills file")
+            return
+        
+        print("searching for bill file @ "+path)
+        
         assocs = Assoc(path, DatabaseType.bills)
 
-        print("bill file #"+path)
-        
         bill = None
         for e in assocs.entries: # each key:value lines
 
@@ -91,6 +93,8 @@ class Project:
                         bill.label = e.value
                     case "Frais":
                         bill.transactions.append(BillTransaction(e.key, e.value))
+                    case "Designation":
+                        bill.designation = e.value
                         
 
         #print("bill : "+self.uid+" , solved x" ,len(self.bills))

@@ -1,6 +1,6 @@
 
 import configs
-#from modules.system import *
+from modules.system import *
 from modules.logger import *
 from modules.path import *
 
@@ -22,6 +22,20 @@ class Assoc:
         
         return self.createBySub(fileName, dbType)
 
+    # to check if file exists before calling constructor
+    @staticmethod
+    def has(fileName, dbType = None):
+        
+        # force add extension
+        if not configs.dbExtension in fileName:
+            fileName = fileName + configs.dbExtension
+
+        path = Path.getDbTypePath(dbType)
+        
+        return hasFile(path + fileName)
+
+        
+        
     # using LNK
     def createBySub(self, fileName, dbType):
         
@@ -45,11 +59,15 @@ class Assoc:
     def solveEntries(self, lines):
         
         if lines == None:
-            print("error:no lines given Assoc@"+self.fileName)
+            print("error:   'None' lines given  @"+self.fileName)
             return
 
         self.entries = []
-
+        
+        if len(lines) <= 0:
+            print("warning:no lines     @"+self.fileName)
+            return
+        
         for i in range(0, len(lines)):
             self.entries.append(AssocEntry(lines[i]))
         
