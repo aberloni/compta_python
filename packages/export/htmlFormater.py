@@ -127,7 +127,7 @@ def generateBill(project, bill):
 
     # +additionnal designation
     if len(bill.designation):
-        output += "<span id=\"bill-designation\">"+project.designation+"</span>"
+        output += "<div id=\"bill-designation\">"+bill.label+"</div>"
 
     # array of days and amounts
     output += "<div id=\"tasks\">"
@@ -176,7 +176,7 @@ def generateBill(project, bill):
             htmlMonth = calendar.month_abbr[int(month)] # nov.
             
             if len(bill.label) > 0:
-                output += generateLabeledTask(htmlMonth+" "+year, ht, bill.label)
+                output += generateLabeledTask(htmlMonth+" "+year, ht, bill.designation)
             else:
                 output += generateDaysTask(htmlMonth+" "+year, cnt, ht)
 

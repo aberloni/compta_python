@@ -193,6 +193,13 @@ hr
     font-weight: bold;
 }
 
+#bill-designation
+{
+    margin:50px auto;
+    width:80%;
+    font-size: 0.8em;
+}
+
 /* TASKS */
 
 #tasks
