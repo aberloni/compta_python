@@ -73,28 +73,30 @@ class Project:
         bill = None
         for e in assocs.entries: # each key:value lines
 
-            print(e.key)
-            print(e.value)
+            #print("project.assoc :  "+e.key+" = "+e.value)
 
             #{YYYY-mm-dd} OR {type}
             type = e.key[0] # first symbol of line
 
-            if type.isnumeric(): # starts with a number = a new bill
+            if type.isnumeric(): # starts with a number = new bill
                 
                 bill = Bill(self, e.key, e.value)
                 self.bills.append(bill)
                 
-            else:
+            else: # lines between each bill header
                 
-                # additionnal fields
+                # additionnal fields for this bill
                 
                 match e.key:
                     case "Label":
                         bill.label = e.value
+                        print("+Label :     "+bill.label)
                     case "Frais":
                         bill.transactions.append(BillTransaction(e.key, e.value))
+                        print("+Frais :   x"+str(len(bill.transactions)))
                     case "Designation":
                         bill.designation = e.value
+                        print("+Designation :   "+bill.designation)
                         
 
         #print("bill : "+self.uid+" , solved x" ,len(self.bills))
