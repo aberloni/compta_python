@@ -1,3 +1,10 @@
+"""
+    Meant to fetch/encapsulate all data from DB/
+
+    Accessible using :      Database.instance
+
+"""
+
 import os
 from enum import Enum
 
@@ -18,14 +25,6 @@ class Database:
 
         pass
         
-    @staticmethod
-    def getExportStatementsFolder():
-        return Path.getExportFolderPath()+"statements/"
-
-    @staticmethod
-    def getExportBillingFolder():
-        return Path.getExportFolderPath()+"billings/"
-
 
     """
     database init   : labels
@@ -38,7 +37,7 @@ class Database:
         instance = Database()
 
         instance.creditors = Creditor() # all labels to match statem transactions
-        instance.fetch_statements() # bank statements
+        instance.statements = instance.fetch_statements() # bank statements
         
         #print("imported x", len(instance.statements))
         
@@ -46,6 +45,9 @@ class Database:
     
     """
     database init   : billing
+        clients
+        tasks
+        projects
     """
     @staticmethod
     def init_billing():
@@ -54,29 +56,21 @@ class Database:
 
         instance = Database()
 
-        instance.fetch_clients()
-        instance.solveTasks()
-        instance.solveProjects()
+        instance.clients = instance.fetch_clients() # self.clients
+        instance.solveProjects() # +tasks
 
+        instance.tasks = instance.fetch_tasks()
+        instance.projects = instance.fetch_projects()
+        
+        for p in instance.projects:
+            p.assignTasks(instance.tasks)
+        
         return instance
-    
-    def solveProjects(self):
-        
-        #self.solveClients()
 
-        self.fetch_projects()
-        
-        for p in self.projects:
-            p.assignTasks(self.tasks)
-
-        # print(self.clients)
-        # print(self.projects)
-        
-        #print("imported projects : x", len(self.projects))
-
-
-
-    def solveTasks(self):
+    """
+        extract all self.tasks
+    """
+    def fetch_tasks(self):
 
         import packages.database.task as task
         from modules.path import Path
@@ -86,7 +80,7 @@ class Database:
         # get folder where tasks are
         taskFiles = Path.getAllFilesFromDbType(DatabaseType.tasks)
 
-        self.tasks = []
+        output = []
 
         for f in taskFiles:
             
@@ -97,10 +91,12 @@ class Database:
 
             # add them all
             for t in _tasks.entries:
-                self.tasks.append(task.Task(t))
+                output.append(task.Task(t))
 
         if self.verbose:
-            print("from tasks files = total tasks[] x", len(self.tasks))
+            print("from tasks files = total tasks[] x", len(output))
+
+        return output
 
     def getClient(self, id):
 
@@ -138,6 +134,9 @@ class Database:
 
 
 
+    """
+        returns :   clients[]
+    """
     def fetch_clients(self):
         from packages.database.client import Client
         
@@ -148,7 +147,7 @@ class Database:
             if c != None:
                 output.append(tmp)
         
-        self.clients = output
+        return output
 
     def fetch_projects(self):
         from packages.database.project import Project
@@ -159,19 +158,17 @@ class Database:
             if c != None:
                 output.append(tmp)
         
-        self.projects = output
+        return output
         
     def fetch_statements(self):
         from packages.database.statements import BankLogs
         import modules.system
         
-        # files = Path.getAllFilesFromDbType(DatabaseType.statements)
-        
         # path to statements/
         path = Path.getDbTypePath(DatabaseType.statements)
         #print(path)
         
-        self.bankLogs = []
+        _bankLogs = []
 
         # each bank folders within statements
         bankFolders = modules.system.getAllFilesInFolder(path)
@@ -192,17 +189,19 @@ class Database:
                 
                 # print(b+" >> "+c)
                 tmp = BankLogs(filePath)
-                self.bankLogs.append(tmp)
+                _bankLogs.append(tmp)
         
-        print("total bank logs x"+str(len(self.bankLogs)))
+        print("total bank logs x"+str(len(_bankLogs)))
 
         # for each line within banklogs
         # adds uniq statements (won't be ordered by date)
-        self.statements = []
-        for b in self.bankLogs:
+        output = []
+        for b in _bankLogs:
             for s in b.statements:
                 if not self.hasStatement(s):
-                    self.statements.append(s)
+                    output.append(s)
+
+        return output
         
     def hasStatement(self, st):
         for s in self.statements:
@@ -264,3 +263,12 @@ class Database:
                     output.append(b)
         
         return output
+
+    
+    @staticmethod
+    def folderExportStatements():
+        return Path.getExportFolderPath()+"statements/"
+
+    @staticmethod
+    def folderExportBilling():
+        return Path.getExportFolderPath()+"billings/"

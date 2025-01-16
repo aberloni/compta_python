@@ -1,7 +1,9 @@
 """
-    WIP
-    show unpaid bills & amounts
+    DEPRECATED
+    NOT WORKNIG
 """
+
+# show unpaid bills & amounts
 
 import locale
 locale.setlocale(locale.LC_ALL, 'fr_FR')
@@ -10,20 +12,8 @@ locale.setlocale(locale.LC_ALL, 'fr_FR')
 
 import os
 
-from library.database import Database
-from library.path import Path
-
 # load all data
-db = Database.tracking()
-
-# do something with it
-#print(db)
-
-"""
-for s in db.statements:
-    #print(s.countPositives("2023-01-01", "2023-12-31"))
-    print(s.countPositives("2023-09-01", "2023-09-30"))
-"""
+# db = Database.tracking()
 
 unpaids = db.solveUnpaid()
 

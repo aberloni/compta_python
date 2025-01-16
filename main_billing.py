@@ -14,7 +14,6 @@ from packages.database.database import Database
 
 # loading DB
 
-
 print("\n\nbilling.init.db")
 print("===\n\n")
 

@@ -19,8 +19,8 @@ class Task:
 
     def __init__(self, assoc):
 
-        self.key = assoc.key
-        self.blob = assoc.value
+        self.key = assoc.key        # project
+        self.blob = assoc.value     # values
 
         # print("task blob : ", self.blob)
 
@@ -76,6 +76,9 @@ class Task:
 
         return None
     
+    def hasRedirectedDate(self):
+        return self.redirect != None
+
     # output DATETIME
     def getRedirectedDate(self):
         if self.redirect == None:
@@ -83,6 +86,11 @@ class Task:
         else:
             return self.redirect
 
+    # datetime YYYY
+    def isYear(self, dateY):
+        dt = self.getRedirectedDate()
+        return str(dateY.year) == str(dt.year)
+    
     # datetime YYYY-mm
     def isMonth(self, dateYm):
         
@@ -133,8 +141,12 @@ class Task:
         return True
 
     def stringify(self):
-        return "date:"+str(self.date)+" (redirect?"+str(self.getRedirectedDate())+") , len:"+str(self.len)
-    
+        output = "project:"+self.key
+        output += "    date:"+str(self.date)
+        if self.hasRedirectedDate(): output += " (redirect?"+str(self.getRedirectedDate())+")"
+        output += "     len:"+str(self.len)
+        return output
+
     def log(self, msg):
 
         if not self.verbose:
