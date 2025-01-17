@@ -37,10 +37,19 @@ for y in yTasks:
     months = yTasks[y]
 
     miss = 0
+    work = 0
     for m in months:
         miss += m.countMissingDays()
+        work += m.countWorkDays()
         print(m.stringify())
     
-    print("missing days :   "+str(miss))
+    miss = abs(miss)
+    
+    print("missing days :   "+str(miss)+" / "+str(work))
+
+    perc = miss / work
+    perc *= 100
+
+    print(str(perc)+"% non-worked days")
 
 exit()
