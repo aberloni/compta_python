@@ -39,7 +39,10 @@ class Task:
         # overrides
         if assoc.hasValues():
             for val in assoc.values:
-
+                
+                if "0.5" in val:
+                    self.len = 0.5
+                
                 if "/" in val:
                     if "1/2" in val:
                         self.len = 0.5

@@ -57,8 +57,7 @@ class Database:
         instance = Database()
 
         instance.clients = instance.fetch_clients() # self.clients
-        instance.solveProjects() # +tasks
-
+        
         instance.tasks = instance.fetch_tasks()
         instance.projects = instance.fetch_projects()
         

@@ -295,7 +295,7 @@ def generateHtml(project, bill, exportFileName):
     # final wrapping
     html = wrapSection("html", html)
 
-    exportPath = Database.getExportBillingFolder()
+    exportPath = Database.folderExportBilling()
     f = open(exportPath + exportFileName + ".html", "w")
     f.write(html)
     f.close()

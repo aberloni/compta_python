@@ -9,10 +9,10 @@ statementsExtension = ".csv"
 pathBilling = "billings/"
 
 # all years to export
-billingYears = [2024,2025]
+billingYears = [2024, 2025]
 
 openBillingFolder = True
 openBillingHtmlFile = False
 
-createDump = False
+createDump = True
 openDump = False
