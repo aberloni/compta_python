@@ -12,6 +12,9 @@ import configs
 
 from modules.path import Path
 
+from packages.database.creditor import Creditor
+from packages.database.statements import Statements
+
 # define : database enum
 DatabaseType = Enum('DatabaseType', ["bills", "infos","clients", "projects", "tasks", "statements", "creditors"])
 
@@ -19,12 +22,29 @@ class Database:
 
     verbose = False
 
+    clients = None
+    tasks = None
+    projects = None
+    
     def __init__(self):
         
         Database.instance = self
 
         pass
+    
+    def init_all():
         
+        instance = Database()
+        
+        instance.clients = instance.fetch_clients()
+        instance.tasks = instance.fetch_tasks()
+        
+        instance.fetch_projects()
+        
+        Creditor()
+        Statements()
+        
+        return instance
 
     """
     database init   : labels
@@ -32,12 +52,10 @@ class Database:
     @staticmethod
     def init_labels():
 
-        from packages.database.creditor import Creditor
-        
         instance = Database()
 
-        instance.creditors = Creditor() # all labels to match statem transactions
-        instance.statements = instance.fetch_statements() # bank statements
+        Creditor()
+        Statements()
         
         #print("imported x", len(instance.statements))
         
@@ -57,12 +75,8 @@ class Database:
         instance = Database()
 
         instance.clients = instance.fetch_clients() # self.clients
-        
         instance.tasks = instance.fetch_tasks()
-        instance.projects = instance.fetch_projects()
-        
-        for p in instance.projects:
-            p.assignTasks(instance.tasks)
+        instance.fetch_projects()
         
         return instance
 
@@ -151,61 +165,22 @@ class Database:
     def fetch_projects(self):
         from packages.database.project import Project
         files = Path.getAllFilesFromDbType(DatabaseType.projects)
-        output = []
+        
+        self.projects = []
+        
         for c in files:
             tmp = Project(os.path.basename(c))
             if c != None:
-                output.append(tmp)
+                self.projects.append(tmp)
         
-        return output
+        # tasks is setup : init bills
+        if self.tasks != None:
+            # for each project : inject tasks
+            # to provide data to generate bills
+            for p in self.projects:
+                p.assignTasks(self.tasks)
         
-    def fetch_statements(self):
-        from packages.database.statements import BankLogs
-        import modules.system
-        
-        # path to statements/
-        path = Path.getDbTypePath(DatabaseType.statements)
-        #print(path)
-        
-        _bankLogs = []
-
-        # each bank folders within statements
-        bankFolders = modules.system.getAllFilesInFolder(path)
-        for b in bankFolders:
-            
-            b = b + "/"
-            print("bank : "+b)
-            
-            # each statements files for a given bank
-            files = modules.system.getAllFilesInFolder(b)
-            if len(files) <= 0:
-                print(" ? no statements files in folder : "+b)
-                continue
-            
-            print("found x"+str(len(files))+" files")
-            
-            for filePath in files:
-                
-                # print(b+" >> "+c)
-                tmp = BankLogs(filePath)
-                _bankLogs.append(tmp)
-        
-        print("total bank logs x"+str(len(_bankLogs)))
-
-        # for each line within banklogs
-        # adds uniq statements (won't be ordered by date)
-        output = []
-        for b in _bankLogs:
-            for s in b.statements:
-                if not self.hasStatement(s):
-                    output.append(s)
-
-        return output
-        
-    def hasStatement(self, st):
-        for s in self.statements:
-            if s.compare(st): return True
-        return False
+        return self.projects
         
     def fetchFiles(self, dbType):
         # self.clients
@@ -221,48 +196,27 @@ class Database:
 
     # returns all bills of same week in date
     # 
-    def getWeekBills(self, dt):
+    def getWeekBills(self, date):
         
         bills = []
         for p in self.projects:
             
-            # get all bills from that project that are in the same given week
-            _bills = p.getWeekBills(dt)
-
-            # print(p.uid+" & "+str(dt)+" => bills x", len(_bills))
-
-            if len(_bills) > 0:
-                for b in _bills:
-                    bills.append(b)
+            # get all bills from that project that are 
+            # in the same given week
+            _bills = p.getMatchingWeekBills(date)
+            
+            if len(_bills) <= 0: 
+                continue
+            
+            # append
+            for b in _bills:
+                bills.append(b)
         
         return bills
 
     def countWeekBills(self, dt):
         bills = self.getWeekBills(dt)
         return len(bills)
-
-    def solveUnpaid(self):
-        output = []
-
-        for p in self.projects:
-            bills = p.getBills()
-
-            for b in bills:
-                ttc = b.getTTC()
-
-                found = False
-
-                # search for TTC in statements
-                for si in self.statements:
-                    for s in si:
-                        if ttc == s.amount:
-                            found = True
-            
-                if not found:
-                    output.append(b)
-        
-        return output
-
     
     @staticmethod
     def folderExportStatements():

@@ -1,29 +1,58 @@
-"""
-    DEPRECATED
-    NOT WORKNIG
-"""
-
-# show unpaid bills & amounts
-
 import locale
-locale.setlocale(locale.LC_ALL, 'fr_FR')
 
-# DATABASE LOADER
+locale.setlocale(locale.LC_ALL, 'fr_FR')
 
 import os
 
-# load all data
-# db = Database.tracking()
+from packages.database.database import Database
+from datetime import datetime
+from packages.database.statements import Statements
 
-unpaids = db.solveUnpaid()
+db = Database.init_all()
 
-for bill in unpaids:
-    print("billd?"+bill.uid+ " ttc?"+bill.getTTC())
+#print("projects     x"+str(len(db.projects)))
+#print("clients     x"+str(len(db.clients)))
 
-# export/dump result
+strStart = "2024-01-01"
+strEnd = "2024-12-31"
 
-path = Path.getExportStatementsFolder()
-print("tracking : open folder @ "+path)
-os.startfile(path)
+print("from : "+strStart+"       to : "+strEnd)
+
+dtStart = datetime.strptime(strStart, "%Y-%m-%d")
+dtEnd = datetime.strptime(strEnd, "%Y-%m-%d")
+
+# fetch all timeframe bills
+
+darj = Database.instance.getClient("darjeeling")
+print(darj.name)
+
+st =  Statements.instance.extractClientTimeframe(darj, dtStart, dtEnd)
+print("x"+str(len(st)))
+
+amount = 0
+
+for s in st:
+    s.log()
+    amount += s.amount
+
+print("amount ? "+str(amount))
 
 exit()
+
+bills = []
+for p in db.projects:
+    
+    for b in p.bills:
+        if b.isTimeframe(dtStart, dtEnd):
+            bills.append(b)
+            
+    pass
+
+print("bills x "+str(len(bills)))
+
+#for b in bills: print(b.getFullUid())
+
+unpaids = []
+for b in bills:
+    
+    pass

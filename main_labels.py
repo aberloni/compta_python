@@ -16,15 +16,18 @@ from packages.database.database import Database
 from modules.viewer import Viewer
 
 # load all data
-db = Database.init_labels()
+Database.init_labels()
 
-dtStart = "2024-01-01"
-dtEnd = "2024-08-31"
+strStart = "2025-01-01"
+monthCount = 2
 
-print("from : "+dtStart+"       to : "+dtEnd)
+print("from : "+strStart+"  +"+str(monthCount)+" months")
 
 view = Viewer()
-view.solve(db, dtStart, dtEnd)
-view.log(100)
+view.solve(strStart, monthCount)
+
+#view.log(100)
+
+#for m in view.months: m.logDuplicates(2)
 
 exit()

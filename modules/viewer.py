@@ -1,5 +1,4 @@
 
-from packages.database import database
 from datetime import datetime
 import calendar
 
@@ -15,56 +14,11 @@ def add_months(sourcedate, months):
     #return datetime.date(year, month, day)
     return sourcedate.replace(year, month, day)
 
-class ViewRange:
-
-    positif = 0
-    negatif = 0
-    total = 0
-
-    countIssues = 0
-
-    statements = None
-
-    """
-    s = date start
-    e = date end
-    """
-    def __init__(self, db, dStart, dEnd):
-        
-        self.date = dStart
-        #print("@"+self.month)
-
-        self.statements = []
-        for s in db.statements:
-            timeRange = s.isTimeframe(dStart, dEnd)
-
-            if timeRange:
-                
-                self.statements.append(s)
-
-                val = s.amount
-                if val > 0: self.positif += val
-                elif val < 0: self.negatif += val
-                self.total += val
-                
-                if s.hasIssues():
-                    self.countIssues += 1
 
 
-
-    def log(self, statementAmount = None):
-        print("\n"+str(self.date.year)+"-"+str(self.date.month))
-        print("  credit : "+str(self.positif))
-        print("   debit : "+str(self.negatif))
-        print("resultat : "+str(self.total)+" €")
-
-        if statementAmount is not None:
-            for s in self.statements:
-                if abs(s.amount) > abs(statementAmount):
-                    s.log()
-
-        
-
+"""
+generic viewer
+"""
 class Viewer:
 
     
@@ -76,24 +30,26 @@ class Viewer:
     """
     str YYYY-mm-dd
     """
-    def solve(self, db, dtStart, dtEnd):
+    def solve(self, strStart, monthCount):
         
-        dEnd = datetime.strptime(dtEnd, "%Y-%m-%d")
-        tmp = datetime.strptime(dtStart, "%Y-%m-%d")
-        print("view start @ "+dtStart)
-
-        # each months
-        while tmp < dEnd:
-            nextMonth = add_months(tmp, 1)
-            #print("   next : "+str(nextMonth))
-
-            vMonth = ViewRange(db, tmp, nextMonth)
+        tmp = datetime.strptime(strStart, "%Y-%m-%d")
+        print("view start @ "+strStart)
+        
+        dtEnd = tmp
+        for i in range(0, monthCount):
+            
+            dtEnd = add_months(tmp, 1)
+            
+            # month -> next month
+            vMonth = ViewRange(tmp, dtEnd)
             self.months.append(vMonth)
-
-            tmp = nextMonth
+            
+            tmp = add_months(tmp, 1)
+            
+        #print("solved x"+str(len(self.months)))
         
-        print("done")
-
+        #for m in self.months: print(str(m.date)+" x"+str(len(m.statements)))
+    
     def log(self, statementAmount = None):
         print("===RESULT===")
 
@@ -114,4 +70,83 @@ class Viewer:
         print("total    : "+str(total))
             
 
+
+
+
+
+"""
+a view that counts based on date range
+"""
+class ViewRange:
+
+    positif = 0
+    negatif = 0
+    total = 0
+
+    countIssues = 0
+
+    statements = None
+
+    def __init__(self, dStart, dEnd):
+        
+        from packages.database.statements import Statements
+        
+        self.date = dStart
+        
+        # get ALL stats
+        _stats = Statements.instance.statements
+        
+        self.statements = []
+        
+        # find matching timeframe stats
+        for s in _stats:
+            
+            if s.isTimeframe(dStart, dEnd):
+                
+                self.statements.append(s)
+                s.log()
+                
+                val = s.amount
+                if val > 0: self.positif += val
+                elif val < 0: self.negatif += val
+                self.total += val
+                
+                if s.hasIssues():
+                    self.countIssues += 1
+        
+        #print("\n+month "+str(self.date)+" -> "+str(dEnd))
+        #print("     x"+str(len(self.statements)))
+        
+        #for s in self.statements: s.log()
+        
+        
+    def log(self, statementAmount = None):
+        print("\n"+str(self.date.year)+"-"+str(self.date.month))
+        print("  credit : "+str(self.positif))
+        print("   debit : "+str(self.negatif))
+        print("resultat : "+str(self.total)+" €")
+
+        if statementAmount is not None:
+            for s in self.statements:
+                if abs(s.amount) > abs(statementAmount):
+                    s.log()
+
+    def logDuplicates(self, dispAmount):
+    
+        print("log : "+str(self.date)+" x "+str(len(self.statements)))
+        
+        for i in range(0, len(self.statements)):
+            
+            for j in range(i+1, len(self.statements)):
+                
+                a = self.statements[i]
+                b = self.statements[j]
+                
+                if a.compare(b):
+                    print(str(self.date)+"  DUPLICATE! #"+str(i)+" VS #"+str(j))
+                    a.log()
+                    b.log()
+                    dispAmount -= 1
+                    if dispAmount <= 0:
+                        return
 

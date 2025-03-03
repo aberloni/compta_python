@@ -10,21 +10,31 @@ date de facturation:{start},{end}|montant fixe
 
 class Bill:
     
-    verbose = True
-
-    fullUID = None
+    verbose = False
     
-    # field filled by parent project
+    uid = None # YYYY-MM-DD
+    project = None # project name
+    
+    # {YYYY-MM}_s{week year}-{incrmental}
+    # use getter to generate
+    fullUID = None      
+    
+    # public fields filled by parent project
     label = "" # label of prestation (with days count)
     designation = "" # label of billing (above days array)
     
+    transactions = [] # assigned by parent
+    
+    start = None # date.start
+    end = None   # date.end
+    
+    tasks = None # [] all tasks line of this project
+    
+    limit = None # payment limit date
+    
     def __init__(self, project, uid, billHeader):
         
-        # [UID=>START,END]
         self.project = project
-
-        # data = data[1:-1] # remove []
-
         self.uid = uid # 2023-09-XX
 
         self.log("      bill.header : "+billHeader)
@@ -38,8 +48,6 @@ class Bill:
         
         # forfait is | after dates
         self.forfait = None
-
-        self.transactions = []
 
         self.injectData(billHeader)
 
@@ -88,18 +96,29 @@ class Bill:
         
         return True
     
+    def getDatetime(self):
+        _dt = datetime.strptime(self.uid, "%Y-%m-%d")
+        return _dt
+    
     """
     given year must be int
     """
     def isYear(self, year):
-        _dt = datetime.strptime(self.uid, "%Y-%m-%d")
-        _year = _dt.strftime("%Y")
+        dt = self.getDatetime()
+        _year = dt.strftime("%Y")
         return int(_year) == int(year)
     
+    
+    def isDateRange(self, start, end):
+        return self.isTimeframe(start, end)
+        
+    def isTimeframe(self, start, end):
+        return self.start >= start and self.end <= end
+    
+        
     def isSameWeek(self, dt):
         
-        # this bill date
-        _dt = datetime.strptime(self.uid, "%Y-%m-%d")
+        _dt = self.getDatetime()
         
         # same year ?
         if _dt.strftime("%Y") != dt.strftime("%Y") :
@@ -203,7 +222,7 @@ class Bill:
         idx = -1
         for i in range(0,len(bills)):
             
-            print("     #"+str(i)+" ? "+bills[i].uid+" @ "+bills[i].project.uid)
+            if self.verbose : print("     #"+str(i)+" ? "+bills[i].uid+" @ "+bills[i].project.uid)
             
             if bills[i].compareBill(self):
                 idx = i
@@ -232,17 +251,17 @@ class Bill:
         # to Y-m
         trunc = self.uid.split("-")
         trunc = trunc[0]+"-"+trunc[1]
+        
         return trunc + "_s"+week+"-"+idx
     
     """
     this will generate the full UID of a bill
     """
-    def getBillFullUid(self):
+    def getFullUid(self):
         
         if self.fullUID == None:
             self.fullUID = self.solveFullUid()
-            print("=> "+str(self.fullUID))
-        
+            
         return self.fullUID
 
     def getTimespanMonths(self):
@@ -279,9 +298,6 @@ class Bill:
         
         return months
     
-    def isTimeframe(self, start, end):
-        return self.start >= start and self.end <= end
-    
     def log(self, msg):
 
         if not Bill.verbose:
@@ -289,9 +305,10 @@ class Bill:
     
         print("bill#"+self.uid+" : "+msg)
 
-    
+
 """
-all lines of a bill
+possible additionnal transaction(s) in a bill
+ie : frais
 """
 class BillTransaction:
     def __init__(self, type, value):

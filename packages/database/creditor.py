@@ -1,9 +1,16 @@
-from packages.database.database import DatabaseType
+"""
+    Creditors are the type of transaction
+    
+    A creditor is stored in a .cred file
+    Each files are categories that group creditors together
+        food, holiday transport, ...
+    
+"""
+
 from modules.path import Path
 from modules.system import *
 
 """
-    wrapper around all .cred files
     gather all labels sorted by keys
 
     misc.cred     --> label:category,info
@@ -19,6 +26,10 @@ class Creditor:
     
     def __init__(self):
 
+        from packages.database.database import DatabaseType
+
+        Creditor.instance = self
+        
         path = Path.getDbTypePath(DatabaseType.creditors)
         #print(path)
 

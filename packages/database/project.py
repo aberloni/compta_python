@@ -9,8 +9,13 @@ from datetime import datetime
 
 class Project:
 
-    uid = None
     verbose = False
+    
+    uid = None
+    name = None
+    
+    client = None
+    bills = None # array
     
     def __init__(self, fileName):
         
@@ -38,6 +43,8 @@ class Project:
         print("======")
         pass
     
+    # tasks injection in this project
+    #
     def assignTasks(self, tasks):
         self.tasks = []
         for t in tasks:
@@ -47,6 +54,7 @@ class Project:
         if self.verbose:
             print("project "+self.uid+" was assigned tasks x", len(self.tasks))
 
+        # tasks are ready : solve project bill data
         self.generateBills()
 
         pass
@@ -66,7 +74,7 @@ class Project:
             print("project @"+self.uid+" has no bills file")
             return
         
-        print("searching for bill file @ "+path)
+        #print("searching for bill file @ "+path)
         
         assocs = Assoc(path, DatabaseType.bills)
 
@@ -90,33 +98,18 @@ class Project:
                 match e.key:
                     case "Label":
                         bill.label = e.value
-                        print("+Label :     "+bill.label)
+                        if self.verbose: print("+Label :     "+bill.label)
                     case "Frais":
                         bill.transactions.append(BillTransaction(e.key, e.value))
-                        print("+Frais :   x"+str(len(bill.transactions)))
+                        if self.verbose: print("+Frais :   x"+str(len(bill.transactions)))
                     case "Designation":
                         bill.designation = e.value
-                        print("+Designation :   "+bill.designation)
+                        if self.verbose: print("+Designation :   "+bill.designation)
                         
 
         #print("bill : "+self.uid+" , solved x" ,len(self.bills))
                 
         
-
-    def getBill(self, dateStr):
-
-        date = datetime.strptime(dateStr, "%Y-%m-%d")
-
-        # _dt = datetime.strptime(date, "%Y-%m")
-
-        for b in self.bills:
-            if b.isSameWeek(date):
-                return b
-        
-        print("NOT FOUND : bill:"+dateStr)
-        
-        return None
-
     """
     given years must be array of int
     """
@@ -134,7 +127,32 @@ class Project:
                 
         return ret
 
-    def getWeekBills(self, date):
+    def getBillsInDateRange(self, start, end):
+        
+        _bills = []
+        for b in self.bills:
+            if b.isTimeframe(start, end):
+                _bills.append(b)
+                
+        return _bills
+
+    # bill in same week as given date
+    #
+    def getMatchingWeekBill(self, dateStr):
+
+        date = datetime.strptime(dateStr, "%Y-%m-%d")
+
+        for b in self.bills:
+            if b.isSameWeek(date):
+                return b
+        
+        print("NOT FOUND : bill:"+dateStr)
+        
+        return None
+
+    # return array of bills of same week date
+    #
+    def getMatchingWeekBills(self, date):
         output = []
 
         #week = datetime.strptime(date, "%Y-%m-%d")

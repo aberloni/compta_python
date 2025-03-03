@@ -20,8 +20,6 @@ print("===\n\n")
 db = Database.init_billing()
 
 from packages.export.exporter import *
-import modules.system
-
 from modules.path import Path
 
 qty = len(db.projects)
