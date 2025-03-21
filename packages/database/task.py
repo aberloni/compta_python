@@ -63,6 +63,10 @@ class Task:
             
         pass
 
+    # ratio spent of the day working on task ; 0.5 is half day
+    def getTimeSpent(self):
+        return self.len
+
     def getProject(self):
         from packages.database.database import Database
         return Database.instance.getProject(self.key)

@@ -17,7 +17,7 @@ class Bill:
     # field filled by parent project
     label = "" # label of prestation (with days count)
     designation = "" # label of billing (above days array)
-    
+
     def __init__(self, project, uid, billHeader):
         
         # [UID=>START,END]
@@ -65,6 +65,7 @@ class Bill:
         except ValueError:
             print("ERROR : invalid date : ",_dtSplit[1])
             
+        # gather all tasks related to this bill
         self.tasks = []
         for t in self.project.tasks:
             if t.isDateRange(self.start, self.end):
@@ -145,8 +146,9 @@ class Bill:
             if dYm != None:
                 if not t.isMonth(dYm):
                     continue
-
-            output += t.len
+            
+            output += t.getTimeSpent()
+        
         return output
     
     def getHT(self, Ym = None):
