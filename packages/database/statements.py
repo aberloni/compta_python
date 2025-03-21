@@ -1,20 +1,134 @@
 """
+
+    Statements are transactions lines registered by the bank
+    actual money transfering that happened
+    
 Sort all data extracted from bank listings
 bank, date, amount, currency
 """
 
-from packages.database.database import DatabaseType
-import modules.system
 import os
 
+import modules.system
+from modules.path import Path
+
+class Statements:
+    
+    verbose = False
+    
+    logs = None # wrapper of each file within banks/
+    statements = None # all lines within logs
+    
+    def __init__(self):
+        
+        Statements.instance = self
+        
+        self.fetchLogs()
+        
+        # for each line within banklogs
+        # adds uniq statements (won't be ordered by date)
+        self.statements = []
+        for b in self.logs: # each banks files
+            
+            print("\n\n bank ? "+b.uid+" x"+str(len(b.statements)))
+            
+            print(" total is now x"+str(len(self.statements)))
+                
+            for s in b.statements:
+                
+                s.log()
+                
+                # filter duplicates
+                if self.hasStatement(s):
+                    print("--skip")
+                else:
+                    print("++stat")
+                    self.statements.append(s)
+        
+        pass
+    
+        
+    def fetchLogs(self):
+        
+        from packages.database.database import DatabaseType
+
+        # path to statements/
+        path = Path.getDbTypePath(DatabaseType.statements)
+        #print(path)
+        
+        # wrapper for each bank file 
+        # all files within all banks/
+        self.logs = [] 
+
+        # each bank folders within statements
+        bankFolders = modules.system.getAllFilesInFolder(path)
+        for b in bankFolders:
+            
+            b = b + "/"
+            if self.verbose : print("bank : "+b)
+            
+            # each statements files for a given bank
+            files = modules.system.getAllFilesInFolder(b)
+            if len(files) <= 0:
+                print(" ? no statements files in folder : "+b)
+                continue
+            
+            if self.verbose: print("found x"+str(len(files))+" files")
+            
+            for filePath in files:
+                
+                # print(b+" >> "+c)
+                tmp = BankLogs(filePath)
+                self.logs.append(tmp)
+        
+        if self.verbose: print("total bank logs x"+str(len(self.logs)))
+        pass
+    
+    # given statement is already added ?
+    # duplicate ?
+    def hasStatement(self, st):
+        
+        for stat in self.statements:
+            if stat.compare(st): # same ?
+                return True
+            
+        return False
+    
+    def extractClient(self, client):
+        output = []
+        
+        #print("x"+str(len(self.statements)))
+        
+        for s in self.statements:
+            if s.hasClient(client):
+                output.append(s)
+        
+        if len(output) <= 0:
+            print("/! no statements from client : "+client.creditor)
+            
+            for s in self.statements:
+                print(s.creditor)
+            
+        return output
+    
+    def extractClientTimeframe(self, client, start, end):
+        all = self.extractClient(client)
+        
+        output = []
+        for s in all:
+            if s.isTimeframe(start, end):
+                output.append(s)
+        
+        return output
+
 """
-all statements form a specific bank file
+wrapper containing all statements form a specific bank file
 """
 class BankLogs:
 
     const_pending = "pending"
 
-    statements = None
+    statements = None # Statement[]
 
     def __init__(self, filePath):
 
@@ -139,25 +253,33 @@ class BankLogs:
                 output.append(s)
 
         return output
-    
+
+
+
+
+
 """
-one line within a bank file
+A Statement is one line within a bank file
     label   : first
     labels  : all 3
 """
 class Statement:
 
-    labels = None
-    creditor = None
-    currency = None
-    amount = 0
+    bank = None         # concerned bank
 
-    def __init__(self, contextFile, bank, line):
+    labels = None       # type of transaction (food, holiday, ...)
+    creditor = None     # label of paid person
+    currency = None     # EUR, USD, ...
+    amount = 0          # 0000,00
 
-        from packages.database.database import Database
+    context = ""        # original file
+    line = ""           # actual raw line
+    
+    def __init__(self, file, bank, line):
 
-        self.context = contextFile
-        
+        from packages.database.creditor import Creditor
+
+        self.context = file
         self.bank = bank
         self.line = line
 
@@ -178,16 +300,21 @@ class Statement:
             print("no labels solved ?")
             print(self.context+" : "+line)
         else:
+            
             # solve what creditor is assoc to this transaction
             #self.creancier = Database.instance.creanciers.filterKeyContains(self.label)
             
-            self.creditor = Database.instance.creditors.solveCreditorOfLabel(self.labels)
+            self.creditor = Creditor.instance.solveCreditorOfLabel(self.labels)
         
         #self.checkValidity()
 
+    # param statement is the same as local one ?
+    #
     def compare(self, statement):
-        if not self.bank == statement.bank: return False
-        if not self.amount == statement.amount: return False
+        
+        if self.amount != statement.amount: return False
+        #if self.bank != statement.bank: return False
+        
         return True
 
     def checkValidity(self):
@@ -273,11 +400,14 @@ class Statement:
         # #1 = base label
         self.label = datas[1]
         
-        # funnel all field before amount
+        # funnel all fields before amount
         self.labels = []
-        if len(datas) > 4:
+        if len(datas) > 4: # has enough data ?
+            
+            # last 2 slots are AMOUNT & CURRENCY
             for i in range(1,len(datas)-2):
                 self.labels.append(datas[i])
+                
         else:
             self.labels.append(self.label)
         
@@ -316,6 +446,16 @@ class Statement:
     def hasCreditor(self):
         return self.creditor is not None
 
+    def hasClient(self, client):
+        
+        # search in labels (all fields of the log)
+        for lbl in self.labels:
+            if client.creditor in lbl:
+                return True
+        
+        # fallback, is it creditor ?
+        return self.creditor == client.creditor
+
     def logUnknown(self):
         print("\nUNKNOWN : "+self.label)
         
@@ -345,6 +485,6 @@ class Statement:
         output += " label"+self.label
 
         for l in self.labels:
-            output += "\n    "+l
+            output += "\n    > "+l
 
         print(output)

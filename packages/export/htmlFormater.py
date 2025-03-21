@@ -116,7 +116,7 @@ def generateBill(project, bill):
     
     assoc = Assoc("statics")
 
-    output += wrapAssoc("bill-header", "FACTURE", bill.getBillFullUid())
+    output += wrapAssoc("bill-header", "FACTURE", bill.getFullUID())
 
     # object title
     output += "<div id=\"bill-object\">"

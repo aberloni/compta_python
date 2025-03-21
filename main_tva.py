@@ -36,7 +36,7 @@ for p in db.projects:
         ttc = b.getTTC()
         tva = b.getTvaTotal()
 
-        print(b.getBillFullUid()+" >> HT : "+str(ht)+" | TTC : "+str(ttc)+" | TVA : "+str(tva))
+        print(b.getFullUID()+" >> HT : "+str(ht)+" | TTC : "+str(ttc)+" | TVA : "+str(tva))
 
 print("done")
 exit()
