@@ -6,7 +6,6 @@ from modules.assocs import Assoc
 
 from datetime import datetime
 
-
 class Project:
 
     verbose = False
@@ -69,13 +68,12 @@ class Project:
         path = "bills_"+self.uid
         self.bills = []
         
-        # search for bills linked to this project
+        # any bill file matching this project ?
         if not Assoc.has(path, DatabaseType.bills):
             print("project @"+self.uid+" has no bills file")
             return
         
-        #print("searching for bill file @ "+path)
-        
+        # search for bills linked to this project
         assocs = Assoc(path, DatabaseType.bills)
 
         bill = None
@@ -83,12 +81,18 @@ class Project:
 
             #print("project.assoc :  "+e.key+" = "+e.value)
 
+            # each line is either a bill header
+            # or some detail for that bill
+            
             #{YYYY-mm-dd} OR {type}
             type = e.key[0] # first symbol of line
 
             if type.isnumeric(): # starts with a number = new bill
                 
                 bill = Bill(self, e.key, e.value)
+                
+                if self.verbose: print("+Bill : "+e.key)
+                
                 self.bills.append(bill)
                 
             else: # lines between each bill header
@@ -96,17 +100,17 @@ class Project:
                 # additionnal fields for this bill
                 
                 match e.key:
-                    case "Label":
-                        bill.label = e.value
-                        if self.verbose: print("+Label :     "+bill.label)
                     case "Frais":
-                        bill.transactions.append(BillTransaction(e.key, e.value))
-                        if self.verbose: print("+Frais :   x"+str(len(bill.transactions)))
+                        bill.addTransaction(e.key, e.value)
+                        
+                    case "Label":
+                        bill.label = e.value  # override label
+                        if self.verbose: print("+Label :     "+bill.label)
+                    
                     case "Designation":
-                        bill.designation = e.value
+                        bill.designation = e.value # override designation
                         if self.verbose: print("+Designation :   "+bill.designation)
                         
-
         #print("bill : "+self.uid+" , solved x" ,len(self.bills))
                 
         
@@ -162,8 +166,8 @@ class Project:
             if b.isSameWeek(date):
                 output.append(b)
         
-        if self.verbose:
-            print(self.uid+" ? "+str(date)+" , found bills x"+str(len(output)))
+        if self.verbose and len(output) > 0:
+            print("matching.week    project:"+self.uid+" @"+str(date)+" , found project bills x"+str(len(output)))
 
         return output 
     

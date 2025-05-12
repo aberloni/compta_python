@@ -46,7 +46,7 @@ def exportBills(project, yearsToExport):
 
 def exportBill(project, bill):
 
-    _billFuid = bill.getBillFullUid()
+    _billFuid = bill.getFullUid()
 
     if _billFuid == None:
         print("could not solve fullUID of bill # "+bill.uid)

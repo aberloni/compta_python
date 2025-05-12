@@ -23,8 +23,6 @@ class Bill:
     label = "" # label of prestation (with days count)
     designation = "" # label of billing (above days array)
     
-    transactions = [] # assigned by parent
-    
     start = None # date.start
     end = None   # date.end
     
@@ -48,8 +46,15 @@ class Bill:
         
         # forfait is | after dates
         self.forfait = None
+        self.transactions = []
 
         self.injectData(billHeader)
+
+    def addTransaction(self, key, value):
+        bt = BillTransaction(key, value)
+        self.transactions.append(bt)
+        
+        if self.verbose: print("+Frais :  bill:"+self.uid+" --> x"+str(len(self.transactions)))
 
     def injectData(self, data):
 
@@ -309,6 +314,7 @@ class Bill:
 
 
 """
+FRAIS ADDITIONNEL
 possible additionnal transaction(s) in a bill
 ie : frais
 """
