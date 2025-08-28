@@ -62,7 +62,7 @@ class Bill:
         if "|" in data:
             splitted = data.split("|")
             data = splitted[0]
-            self.forfait = int(splitted[1])
+            self.forfait = float(splitted[1])
 
         _dtSplit = data.split(",")
 
