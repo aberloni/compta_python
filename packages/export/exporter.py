@@ -3,7 +3,9 @@ import configs
 
 from packages.export.htmlFormater import *
 from modules.path import Path
-    
+
+from weasyprint import HTML
+
 def clearExportFolder():
     path = getLocalPath()
     path += configs.pathExport
@@ -20,30 +22,20 @@ def getLocalPath():
 
     return localPath
 
-def exportBills(project, yearsToExport):
+def exportBills(project, exportDateRange):
 
-    """
-    if yearsToExport != None:
-        print("FILTER YEARS x "+str(len(yearsToExport)))
-        for y in yearsToExport: 
-            print(y)
-    """
-    
-    bills = project.getBills(yearsToExport)
-
-    cnt = len(bills)
-    print("project has x"+str(cnt)+" bills");
-
-    if len(bills) <= 0:
-        
-        print(" /! no bills for "+project.uid)
-
-    else:
-        
+    bills = project.getBills(exportDateRange)
+    print("x"+str(len(bills)))
+          
+    if len(bills) > 0:
         for b in bills:
             exportBill(project, b)
-    
 
+    return bills
+
+
+# export to .dump & .html
+#
 def exportBill(project, bill):
 
     _billFuid = bill.getFullUid()
@@ -61,7 +53,7 @@ def exportBill(project, bill):
     # export file name
     billFileName = _billFuid+"_"+project.client.uid+"_"+project.uid
 
-    if configs.createDump:
+    if configs.is_debugging():
         # GENERATE DUMP FILE
         pathDump = exportPath+billFileName+".dump"
         f = open(pathDump, "w")
@@ -70,24 +62,30 @@ def exportBill(project, bill):
     
     #print("saved dump @ "+pathDump)
 
-    if configs.openDump :
-        print("opening dump @ "+pathDump)
-
-        # https://stackoverflow.com/questions/43204473/os-startfile-path-in-python-with-numbers
-        os.startfile(pathDump)
-
     # GENERATE HTML
 
-    generateHtml(project, bill, billFileName)
+    htmlPath = generateHtml(project, bill, billFileName)
 
     # [drive]:\[path_to_cloned_folder\
     # print(localPath)
 
-    if configs.openBillingHtmlFile:
-        path = "file:///"+exportPath+billFileName+".html"
+    # generate PDF
+    if configs.creatPdf:
+        HTML(htmlPath).write_pdf(exportPath+billFileName+".pdf")
 
-        print("opening html @ "+path)
+def openBillInFolder(billFileName):
+    exportPath = Path.getExportBillingPath()
+    path = "file:///"+exportPath+billFileName+".html"
 
-        import webbrowser
-        #webbrowser.open(htmlFile,new=2)
-        webbrowser.open_new_tab(path)
+    print("opening html @ "+path)
+    
+    import webbrowser
+    #webbrowser.open(htmlFile,new=2)
+    webbrowser.open_new_tab(path)
+
+def openDumpFile(pathDump):
+    
+    print("opening dump @ "+pathDump)
+
+    # https://stackoverflow.com/questions/43204473/os-startfile-path-in-python-with-numbers
+    os.startfile(pathDump)

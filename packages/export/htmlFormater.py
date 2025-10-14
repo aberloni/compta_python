@@ -296,8 +296,12 @@ def generateHtml(project, bill, exportFileName):
     html = wrapSection("html", html)
 
     exportPath = Database.folderExportBilling()
-    f = open(exportPath + exportFileName + ".html", "w")
+    exportPath += exportFileName + ".html"
+
+    f = open(exportPath, "w")
     f.write(html)
     f.close()
 
     print("     generated HTML : "+exportFileName)
+
+    return exportPath

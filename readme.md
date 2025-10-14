@@ -20,3 +20,7 @@ app to generate billings
 - solve what is fully paid
 - keep track of TVA declaration
 - solve what was not declared yet /month
+
+# deps
+
+	pip install weasyprint

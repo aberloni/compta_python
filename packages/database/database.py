@@ -105,7 +105,7 @@ class Database:
             # add them all
             for t in _tasks.entries:
                 output.append(task.Task(t))
-
+        
         if self.verbose:
             print("from tasks files = total tasks[] x", len(output))
 

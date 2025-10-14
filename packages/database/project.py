@@ -117,18 +117,25 @@ class Project:
     """
     given years must be array of int
     """
-    def getBills(self, filterYears = None):
+    def getBills(self, rangeDate = None):
         
-        if filterYears == None:
+        if rangeDate == None:
             return self.bills
         
         ret = []
         
+        print(":before x"+str(len(self.bills)))
+
         for b in self.bills:
-            for y in filterYears:
-                if b.isYear(y) :
-                    ret.append(b)
-                
+            inRange = b.isDateRangeOverlap(rangeDate)
+            
+            print(str(b.uid)+" ? "+str(rangeDate)+" "+str(inRange))
+
+            if inRange :
+                ret.append(b)
+        
+        print(":after x"+str(len(ret)))
+
         return ret
 
     def getBillsInDateRange(self, start, end):

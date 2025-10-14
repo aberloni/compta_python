@@ -1,3 +1,5 @@
+import sys
+
 #import library.exporter
 
 # database files extension
@@ -9,10 +11,14 @@ statementsExtension = ".csv"
 pathBilling = "billings/"
 
 # all years to export
-billingYears = [2025]
+billingRange = ["2025-07","2025-10"]
+#pdfExportRange = ["2025-09","2025-10"]
 
+# create
+creatPdf = True
+
+# open after process
 openBillingFolder = True
-openBillingHtmlFile = False
 
-createDump = True
-openDump = False
+def is_debugging():
+    return sys.gettrace() is not None

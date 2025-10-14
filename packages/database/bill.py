@@ -1,5 +1,6 @@
 from datetime import datetime
 from datetime import timedelta
+import calendar
 
 from modules.system import *
 
@@ -56,6 +57,8 @@ class Bill:
         
         if self.verbose: print("+Frais :  bill:"+self.uid+" --> x"+str(len(self.transactions)))
 
+    # during constructor
+    #
     def injectData(self, data):
 
         # | is to override day count
@@ -114,6 +117,41 @@ class Bill:
         _year = dt.strftime("%Y")
         return int(_year) == int(year)
     
+    # returns datetime time based on multiple possible patterns
+    #
+    def parse_date(self, s):
+        
+        FORMATS = ["%Y-%m-%d", "%Y-%m", "%Y"]
+        for fmt in FORMATS:
+            try:
+                dt = datetime.strptime(s, fmt)
+                if fmt == "%Y-%m":  # set to last day of month
+                    last_day = calendar.monthrange(dt.year, dt.month)[1]
+                    return datetime(dt.year, dt.month, last_day)
+                if fmt == "%Y":  # set to last day of year
+                    return datetime(dt.year, 12, 31)
+                return dt
+            except ValueError:
+                continue
+            
+        raise ValueError(f"Date '{s}' does not match expected formats")
+
+    # input are strings : "YYYY-MM-DD"
+    # input is array [start,end]
+    #
+    def isDateRangeOverlap(self, range):
+
+        start = self.parse_date(range[0])
+        end = self.parse_date(range[1])
+
+        print(str(self.start)+","+str(self.end)+" ? "+str(start)+","+str(end))
+
+        #if (start >= self.start and start <= self.end) or (end >= self.start and end <= self.end):
+        # two ranges overlap if each range starts before the other ends.
+        if start <= self.end and self.start <= end:
+            return True
+
+        return False
     
     def isDateRange(self, start, end):
         return self.isTimeframe(start, end)
@@ -195,13 +233,15 @@ class Bill:
         return round(output, 2)
 
     def dump(self):
-        output = self.project.name
+        output = self.project.name+"\n"
 
-        output += "\n\nuid : "+self.uid
+        output += f"\nuid         {self.uid}"
+        output += f"\ndate range  [{self.start:%Y-%m-%d},{self.end:%Y-%m-%d}]"
 
-        output += "\n\nproject tasks x"+str(len(self.project.tasks))
-
-        output += "\n\nbill tasks x"+str(len(self.tasks))
+        output += "\n"
+        output += "\n"
+        output += "\nproject total tasks x"+str(len(self.project.tasks))
+        output += "\nthis bill tasks x"+str(len(self.tasks))
         for t in self.tasks:    
             output += "\n  "+t.stringify()
         

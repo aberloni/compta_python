@@ -30,9 +30,11 @@ print("===\n\n")
 for p in db.projects:
     #curProject = db.getProject(p)
     
-    print("\n\nproject.export :     "+p.uid)
+    print("\nproject.export :     "+p.uid)
 
-    exportBills(p, configs.billingYears)
+    bills = exportBills(p, configs.billingRange)
+
+    print("project.bills :      x"+str(len(bills)))
 
 if configs.openBillingFolder:
     path = Path.getExportBillingPath()
