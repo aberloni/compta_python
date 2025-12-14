@@ -23,4 +23,10 @@ app to generate billings
 
 # deps
 
+**weasyprint**
+
 	pip install weasyprint
+
+this needs some other dependencies fetches by using pango
+
+	https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation
