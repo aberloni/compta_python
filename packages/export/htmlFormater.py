@@ -176,7 +176,7 @@ def generateBill(project, bill):
             htmlMonth = calendar.month_abbr[int(month)] # nov.
             
             if len(bill.label) > 0:
-                output += generateLabeledTask(htmlMonth+" "+year, ht, bill.designation)
+                output += generateLabeledTask(htmlMonth+" "+year, ht, bill.label)
             else:
                 output += generateDaysTask(htmlMonth+" "+year, cnt, ht)
 

@@ -141,8 +141,16 @@ class Bill:
     #
     def isDateRangeOverlap(self, range):
 
+        if len(range) <= 0:
+            print("error:need range")
+            return
+        
         start = self.parse_date(range[0])
-        end = self.parse_date(range[1])
+
+        if len(range) == 1:
+            end = start
+        else:
+            end = self.parse_date(range[1])
 
         print(str(self.start)+","+str(self.end)+" ? "+str(start)+","+str(end))
 
