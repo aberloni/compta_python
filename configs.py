@@ -11,7 +11,7 @@ statementsExtension = ".csv"
 pathBilling = "billings/"
 
 # all years to export
-billingRange = ["2025-12","2026-02"]
+billingRange = ["2026-01","2026-03"]
 #pdfExportRange = ["2025-09","2025-10"]
 
 # create

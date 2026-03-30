@@ -99,17 +99,24 @@ class Project:
                 
                 # additionnal fields for this bill
                 
-                match e.key:
-                    case "Frais":
-                        bill.addTransaction(e.key, e.value)
+                overrideKey = e.key.lower()
+
+                match overrideKey:
+                    case "frais":
+                        bill.addTransaction(overrideKey, e.value)
+                        if self.verbose: print("+Frais :     "+overrideKey+"="+e.value)
                         
-                    case "Label":
+                    case "label":
                         bill.label = e.value  # override label
                         if self.verbose: print("+Label :     "+bill.label)
                     
-                    case "Designation":
+                    case "designation":
                         bill.designation = e.value # override designation
                         if self.verbose: print("+Designation :   "+bill.designation)
+                    
+                    case "projet":
+                        self.name = e.value
+                        if self.verbose: print("(override)project name :   "+self.name)
                         
         #print("bill : "+self.uid+" , solved x" ,len(self.bills))
                 

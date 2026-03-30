@@ -40,10 +40,17 @@ class Task:
         if assoc.hasValues():
             for val in assoc.values:
                 
-                if "0.5" in val:
-                    self.len = 0.5
-                
-                if "/" in val:
+                if "." in val:
+                    if "0.5" in val:
+                        self.len = 0.5
+                    
+                    elif "0.25" in val:
+                        self.len = 0.25
+
+                    elif "0.75" in val:
+                        self.len = 0.75
+
+                elif "/" in val:
                     if "1/2" in val:
                         self.len = 0.5
                     if "1/4" in val:
@@ -51,15 +58,20 @@ class Task:
                     if "1/0" in val:
                         self.len = 0
 
-                if ">" in val:
+                elif ">" in val:
                     # https://stackoverflow.com/questions/663171/how-do-i-get-a-substring-of-a-string-in-python
                     self.redirect = val[1:] # remove '>'
                     self.redirect = strToYmd(self.redirect)
                     
-                if "\"" in val:
+                elif "\"" in val:
                     val = val[1:] # remove first "
                     val = val[:-1] # remove last "
                     self.label = val
+
+                else:
+                    print("UNSUPPORTED assoc.value "+val)
+                    
+        
             
         pass
 

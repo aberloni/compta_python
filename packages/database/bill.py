@@ -14,11 +14,11 @@ class Bill:
     verbose = False
     
     uid = None # YYYY-MM-DD
-    project = None # project name
+    project = None # {project}
     
     # {YYYY-MM}_s{week year}-{incrmental}
     # use getter to generate
-    fullUID = None      
+    fullUID = None
     
     # public fields filled by parent project
     label = "" # label of prestation (with days count)
