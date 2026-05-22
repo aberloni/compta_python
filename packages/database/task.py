@@ -36,27 +36,26 @@ class Task:
         self.len = 1
         self.redirect = None
 
-        # overrides
+        # overrides, comma separator
         if assoc.hasValues():
             for val in assoc.values:
                 
-                if "." in val:
-                    if "0.5" in val:
-                        self.len = 0.5
-                    
-                    elif "0.25" in val:
-                        self.len = 0.25
+                if val == "0": self.len = 0
 
-                    elif "0.75" in val:
-                        self.len = 0.75
+                if "." in val: # [0,1]%
 
-                elif "/" in val:
-                    if "1/2" in val:
-                        self.len = 0.5
-                    if "1/4" in val:
-                        self.len = 0.25
-                    if "1/0" in val:
-                        self.len = 0
+                    if val == "0.0": self.len = 0
+                    elif val == "0.5": self.len = 0.5
+                    elif val == "0.25": self.len = 0.25
+                    elif val == "0.75": self.len = 0.75
+
+                elif "/" in val: # 1/2 1/4 1/5
+                    sides = val.split("/")
+                    sides[0] = int(sides[0])
+                    sides[1] = int(sides[1])
+
+                    if sides[1] == 0: self.len = 0
+                    else: self.len = sides[0] / sides[1]
 
                 elif ">" in val:
                     # https://stackoverflow.com/questions/663171/how-do-i-get-a-substring-of-a-string-in-python
