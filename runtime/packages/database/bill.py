@@ -4,6 +4,18 @@ import calendar
 
 from modules.system import *
 
+
+def _iter_months(start, end):
+    """Yield (year, month) tuples from start to end datetimes inclusive."""
+    cy, cm = start.year, start.month
+    ey, em = end.year, end.month
+    while (cy, cm) <= (ey, em):
+        yield (cy, cm)
+        cm += 1
+        if cm > 12:
+            cm = 1
+            cy += 1
+
 """
 date de facturation:{start},{end}|montant fixe
 {math sign}label, prix, quantité
@@ -88,6 +100,10 @@ class Bill:
                 self.tasks.append(t)
 
         self.log("    bill.tasks x "+str(len(self.tasks))+" / total in project x "+str(len(self.project.tasks)))
+
+    def getClient(self):
+        """Return the client applicable at the start of this bill's period."""
+        return self.project.getClient(self.start)
 
     def hasTransactions(self):
         return len(self.transactions) > 0
@@ -221,8 +237,29 @@ class Bill:
         
         return output
     
-    def getHT(self, Ym = None):
-        return self.countDays(Ym) * self.project.getTaux()
+    def getHT(self, Ym=None):
+        """
+        Compute HT amount.
+        If Ym given (YYYY-M string), applies the rate valid at that month's 1st.
+        If Ym is None, sums all months with their respective rates.
+        Forfait case: single rate at bill start date.
+        """
+        if self.isForfait():
+            return self.forfait * self.project.getTaux(self.start)
+
+        if Ym is not None:
+            # Ym is "YYYY-M" or "YYYY-MM" (no day) — add first day for date parsing
+            parts = Ym.split("-")
+            dt = datetime(int(parts[0]), int(parts[1]), 1)
+            return self.countDays(Ym) * self.project.getTaux(dt)
+
+        # total: sum by month with per-month rate
+        total = 0.0
+        for yr, mo in _iter_months(self.start, self.end):
+            m_str = f"{yr}-{mo}"
+            dt = datetime(yr, mo, 1)
+            total += self.countDays(m_str) * self.project.getTaux(dt)
+        return total
 
     # percentage of TVA to apply
     def getTVA(self):

@@ -3,16 +3,15 @@
 """
 
 import locale
-locale.setlocale(locale.LC_ALL, 'fr_FR')
-
-# DATABASE LOADER
+try:
+    locale.setlocale(locale.LC_ALL, 'fr_FR')
+except locale.Error:
+    locale.setlocale(locale.LC_ALL, '')
 
 import os
 import configs
 
 from packages.database.database import Database
-
-# loading DB
 
 print("\n\nbilling.init.db")
 print("===\n\n")
@@ -28,20 +27,15 @@ print("\n\nbilling.solved :     projects x"+str(qty))
 print("===\n\n")
 
 for p in db.projects:
-    #curProject = db.getProject(p)
-    
     print("\nproject.export :     "+p.uid)
-
     bills = exportBills(p, configs.billingRange)
-
     print("project.bills :      x"+str(len(bills)))
 
 if configs.openBillingFolder:
     path = Path.getExportBillingPath()
-
     print("billing.open.folder @    "+path)
-    
-    os.startfile(path)
+    if hasattr(os, 'startfile'):
+        os.startfile(path)
 
 print("done")
 exit()

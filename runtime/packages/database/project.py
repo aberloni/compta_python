@@ -6,6 +6,61 @@ from modules.assocs import Assoc
 
 from datetime import datetime
 
+
+def _parse_dated_entries(entries):
+    """
+    Generic parser for dated key entries.
+    Returns (base_value: str|None, dated: list[(datetime, str)])
+
+    Formats accepted:
+        key:uid                    → base value (no date)
+        key:2025-06-01=newuid      → value effective from that date
+    """
+    base = None
+    dated = []
+    for e in entries:
+        v = e.value
+        if "=" in v:
+            parts = v.split("=", 1)
+            dt = datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+            dated.append((dt, parts[1].strip()))
+        else:
+            base = v
+    dated.sort(key=lambda x: x[0])
+    return base, dated
+
+
+def _resolve_at_date(base, dated, date):
+    """Return the value applicable at `date` from (base, dated) pairs."""
+    result = base
+    for dt, val in dated:
+        if date is None or dt <= date:
+            result = val
+    return result
+
+
+def _parse_taux_entries(entries):
+    """
+    Parse all 'taux' AssocEntry values.
+    Returns (base: int|None, dated: list[(datetime, int)])
+
+    Formats accepted:
+        taux:280               → base rate (no date)
+        taux:2024-06-01=320    → rate effective from that date
+    """
+    base = None
+    dated = []
+    for e in entries:
+        v = e.value
+        if "=" in v:
+            parts = v.split("=", 1)
+            dt = datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+            dated.append((dt, int(parts[1].strip())))
+        else:
+            base = int(v)
+    dated.sort(key=lambda x: x[0])
+    return base, dated
+
 class Project:
 
     verbose = False
@@ -22,10 +77,13 @@ class Project:
 
         self.uid = self.assoc.filterKey("uid")
         self.name = self.assoc.filterKey("name")
-        
-        self.client = Database.instance.getClient(self.assoc.filterKey("client"))
-        # self.tasks = Database.tasks.filterKeys(self.uid)
-        
+
+        # client history parsed lazily via getClient(date)
+        # self.client kept as shortcut for the base (no-date) client — rétrocompat
+        _client_entries = self.assoc.filterKeys("client")
+        _base_uid, self._client_dated = _parse_dated_entries(_client_entries)
+        self.client = Database.instance.getClient(_base_uid)
+
         pass
     
     def dump(self):
@@ -185,5 +243,68 @@ class Project:
 
         return output 
     
-    def getTaux(self):
-        return int(self.assoc.filterKey("taux"))
+    def getClient(self, date=None):
+        """
+        Return the Client applicable at `date`.
+        If date is None, returns the base client.
+
+        File formats:
+            client:darjeeling              → base client (rétrocompat)
+            client:2025-06-01=nouveauclient → client effective from that date
+        """
+        if not self._client_dated:
+            return self.client  # simple case, rétrocompat
+
+        uid = _resolve_at_date(
+            self.client.uid if self.client else None,
+            self._client_dated,
+            date
+        )
+        return Database.instance.getClient(uid)
+
+    def getTaux(self, date=None):
+        """
+        Return the daily rate (taux) applicable at `date`.
+        If date is None, returns the base rate (or the latest dated one).
+
+        File formats:
+            taux:280               → base rate, always applicable
+            taux:2024-06-01=320    → rate effective from 2024-06-01
+
+        Multiple taux lines can coexist. The most recent one <= date wins.
+        """
+        entries = self.assoc.filterKeys("taux")
+        base, dated = _parse_taux_entries(entries)
+
+        if not dated:
+            return base  # simple case, rétrocompat
+
+        if date is None:
+            # no date given: use last dated rate, fallback to base
+            return dated[-1][1] if dated else base
+
+        result = base
+        for dt, t in dated:
+            if dt <= date:
+                result = t
+        return result
+
+    def getTauxRange(self, start, end):
+        """
+        Return sorted list of unique taux applied between start and end datetimes.
+        Used for display ("280 → 320 € HT").
+        """
+        entries = self.assoc.filterKeys("taux")
+        base, dated = _parse_taux_entries(entries)
+
+        from packages.database.bill import _iter_months
+        seen = []
+        for m in _iter_months(start, end):
+            dt = datetime(m[0], m[1], 1)
+            t = base
+            for d, rate in dated:
+                if d <= dt:
+                    t = rate
+            if t not in seen:
+                seen.append(t)
+        return seen

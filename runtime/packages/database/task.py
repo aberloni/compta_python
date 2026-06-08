@@ -40,7 +40,7 @@ class Task:
         if assoc.hasValues():
             for val in assoc.values:
                 
-                if val == "0": self.len = 0
+                if val == "0": self.len = 0; continue
 
                 if "." in val: # [0,1]%
 
@@ -66,6 +66,9 @@ class Task:
                     val = val[1:] # remove first "
                     val = val[:-1] # remove last "
                     self.label = val
+
+                elif "-" in val and len(val) >= 8:
+                    pass  # date value (YYYY-MM-DD or YYYY-MM), already parsed as self.date
 
                 else:
                     print("UNSUPPORTED assoc.value "+val)

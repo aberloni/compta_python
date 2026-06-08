@@ -23,9 +23,9 @@ app to generate billings
 
 # deps
 
-**weasyprint**
-
 	pip install weasyprint
+	pip install pdfplumber
+
 
 this needs some other dependencies fetches by using pango
 

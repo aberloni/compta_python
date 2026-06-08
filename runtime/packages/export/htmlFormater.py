@@ -36,8 +36,8 @@ def wrapSection(section, content):
 
     return output
 
-def generateHeader(project):
-    
+def generateHeader(project, bill=None):
+
     if project == None:
         print("no project ?")
         return
@@ -45,7 +45,7 @@ def generateHeader(project):
     output = "<div id=\"header\">"
 
     autoe = Assoc("autoe", DatabaseType.infos)
-    
+
     # header : name & job
     output += "<div id=\"job\">"
     output += "<span id=\"job-personal-name\" class=\"vCenter\">"+autoe.filterKey("name")+"</span>"
@@ -60,7 +60,7 @@ def generateHeader(project):
     output += "<div class=\"bold\">N°TVA  "+autoe.filterKey("tva")+"</div>"
     # output += "<div class=\"bold\">URSSAF "+autoe.filterKey("urssaf")+"</div>"
     output += "</div>"
-    
+
     output += "<div id=\"infos-adresse-wrapper\" class=\"float\">"
     output += "<div id=\"infos-adresse\" class=\"bold\">Adresse</div>"
     output += "<div>"+autoe.filterHtmlValue("address")+"</div>"
@@ -69,16 +69,15 @@ def generateHeader(project):
     output += "<div class=\"clear\"></div>"
     output += "</div>"
 
-    # header : client
-
-    client = project.client
+    # header : client — resolved at bill period start if bill is provided
+    client = bill.getClient() if bill is not None else project.client
 
     output += "<div id=\"client\">"
     output += "<div id=\"client-title\">CLIENT</div>"
     output += "<div id=\"client-name\">"+client.name+"</div>"
     output += "<div id=\"client-address\">"+client.assoc.filterHtmlValue("address")+"</div>"
     output += "</div>"
-    
+
     output += "</div>" # /header
 
     return output
@@ -195,7 +194,12 @@ def generateBill(project, bill):
     ttc = bill.getTTC()
 
     output += "<div id=\"bill-total\">"
-    output += wrapAssoc("taux", "taux", str(project.getTaux())+" € HT")
+    _taux_range = project.getTauxRange(bill.start, bill.end)
+    if len(_taux_range) > 1:
+        _taux_str = " → ".join(str(t) for t in _taux_range) + " € HT"
+    else:
+        _taux_str = str(_taux_range[0] if _taux_range else project.getTaux()) + " € HT"
+    output += wrapAssoc("taux", "taux", _taux_str)
     output += wrapAssoc("totalHT", "Total HT", str(ht)+" € HT")
     output += wrapAssoc("tva","TVA ("+perc+")", str(absTva)+" €")
     
@@ -281,7 +285,7 @@ def generateHtml(project, bill, exportFileName):
     # BODY
     body = "<div id=\"canvas\">"
 
-    body += generateHeader(project)
+    body += generateHeader(project, bill)
 
     body += generateBill(project, bill)
 
