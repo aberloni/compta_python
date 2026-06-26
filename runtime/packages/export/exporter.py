@@ -6,24 +6,8 @@ from modules.path import Path
 
 from weasyprint import HTML
 
-def clearExportFolder():
-    path = getLocalPath()
-    path += configs.pathExport
-
-    # ...
-
-# get basepath to code folder/
-# 
-def getLocalPath():
-    
-    localPath = os.getcwd()
-    localPath = localPath.replace("\\","/").strip()
-    localPath += "/"
-
-    return localPath
-
 def exportBills(project, exportDateRange):
-
+    """Export all bills of a project within the given date range. Returns the bill list."""
     bills = project.getBills(exportDateRange)
     print("x"+str(len(bills)))
           
@@ -34,10 +18,8 @@ def exportBills(project, exportDateRange):
     return bills
 
 
-# export to .dump & .html
-#
 def exportBill(project, bill):
-
+    """Generate HTML (and PDF if creatPdf) for a single bill. Writes to exports/billings/."""
     _billFuid = bill.getFullUid()
 
     if _billFuid == None:
@@ -73,19 +55,3 @@ def exportBill(project, bill):
     if configs.creatPdf:
         HTML(htmlPath).write_pdf(exportPath+billFileName+".pdf")
 
-def openBillInFolder(billFileName):
-    exportPath = Path.getExportBillingPath()
-    path = "file:///"+exportPath+billFileName+".html"
-
-    print("opening html @ "+path)
-    
-    import webbrowser
-    #webbrowser.open(htmlFile,new=2)
-    webbrowser.open_new_tab(path)
-
-def openDumpFile(pathDump):
-    
-    print("opening dump @ "+pathDump)
-
-    # https://stackoverflow.com/questions/43204473/os-startfile-path-in-python-with-numbers
-    os.startfile(pathDump)

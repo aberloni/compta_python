@@ -29,7 +29,7 @@ def filterLines(lines):
             #print("skipping empty line")
             continue
 
-        if "#" in l:
+        if l.startswith("#"):
             #print("skipping comment line")
             continue
 

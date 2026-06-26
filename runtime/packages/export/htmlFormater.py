@@ -113,7 +113,7 @@ def generateBill(project, bill):
 
     output = "<div id=\"bill\">"
     
-    assoc = Assoc("statics")
+    assoc = Assoc("statics", DatabaseType.infos)
 
     output += wrapAssoc("bill-header", "FACTURE", bill.getFullUid())
 
@@ -126,7 +126,7 @@ def generateBill(project, bill):
 
     # +additionnal designation
     if len(bill.designation):
-        output += "<div id=\"bill-designation\">"+bill.label+"</div>"
+        output += "<div id=\"bill-designation\">"+bill.designation+"</div>"
 
     # array of days and amounts
     output += "<div id=\"tasks\">"
@@ -138,13 +138,14 @@ def generateBill(project, bill):
     output += "</div>"
 
     if bill.isForfait():
-        
-    
-        cnt = bill.countDays()
+
         ht = bill.getHT()
         date = bill.getLabelDate()
 
-        output += generateDaysTask(date, cnt, ht)
+        if len(bill.label) > 0:
+            output += generateLabeledTask(date, ht, bill.label)
+        else:
+            output += generateDaysTask(date, bill.countDays(), ht)
         
     else:
 

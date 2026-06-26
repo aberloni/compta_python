@@ -24,7 +24,9 @@ class Path:
 
     @staticmethod
     def getExportFolderPath():
-        return Path.getExternalPath() + "exports/"
+        import os
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
+        return repo_root + "/exports/"
 
     @staticmethod
     def getExportBillingPath():

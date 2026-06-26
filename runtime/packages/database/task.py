@@ -1,177 +1,122 @@
 from modules.system import *
 
 """
-project:work_date
-project:work_date,>redirect_month
-project:work_date,1/2 1/4
+New format (preferred):
+    DD: project
+    DD: project 0.5
 
-project:work_date,"some label to display"
-
+Legacy format (still supported):
+    project:DD
+    project:DD,0.5
 """
 
 class Task:
 
     verbose = False
 
-    key = None
-    blob = None
-    label = ""
+    key = None      # project uid
 
-    def __init__(self, assoc):
+    def __init__(self, assoc, month_ctx=None):
 
-        self.key = assoc.key        # project
-        self.blob = assoc.value     # values
+        self.len = 1
 
-        # print("task blob : ", self.blob)
-
-        dt = ""
-        if not assoc.hasValues():
-            print("!w task assoc has no values ?")
+        if assoc.key.strip().isdigit():
+            self._parse_new(assoc, month_ctx)
         else:
-            dt = assoc.values[0]
-        
+            self._parse_legacy(assoc, month_ctx)
+
+    # DD: project [duration|redirect]
+    def _parse_new(self, assoc, month_ctx):
+
+        day = assoc.key.strip()
+        if month_ctx:
+            dt = f"{month_ctx}-{int(day):02d}"
+        else:
+            dt = day
         self.date = strToYmd(dt)
 
-        # default values
-        self.len = 1
-        self.redirect = None
+        raw = assoc.value.strip()
+        if "#" in raw:
+            raw = raw[:raw.index("#")].strip()
+        parts = raw.split()
+        if not parts:
+            self.key = None
+            return
+        self.key = parts[0]  # project uid
 
-        # overrides, comma separator
+        for token in parts[1:]:
+            self._parse_modifier(token)
+
+    # project:DD[,modifiers]
+    def _parse_legacy(self, assoc, month_ctx):
+
+        self.key = assoc.key
+
+        dt = assoc.values[0] if assoc.hasValues() else ""
+        if month_ctx and dt.isdigit():
+            dt = f"{month_ctx}-{int(dt):02d}"
+        self.date = strToYmd(dt)
+
         if assoc.hasValues():
-            for val in assoc.values:
-                
-                if val == "0": self.len = 0; continue
+            for val in assoc.values[1:]:
+                self._parse_modifier(val)
 
-                if "." in val: # [0,1]%
+    def _parse_modifier(self, val):
 
-                    if val == "0.0": self.len = 0
-                    elif val == "0.5": self.len = 0.5
-                    elif val == "0.25": self.len = 0.25
-                    elif val == "0.75": self.len = 0.75
+        val = val.strip()
 
-                elif "/" in val: # 1/2 1/4 1/5
-                    sides = val.split("/")
-                    sides[0] = int(sides[0])
-                    sides[1] = int(sides[1])
+        if val == "0" or val == "0.0":
+            self.len = 0
 
-                    if sides[1] == 0: self.len = 0
-                    else: self.len = sides[0] / sides[1]
+        elif "." in val:
+            try:
+                self.len = float(val)
+            except ValueError:
+                print("UNSUPPORTED modifier: " + val)
 
-                elif ">" in val:
-                    # https://stackoverflow.com/questions/663171/how-do-i-get-a-substring-of-a-string-in-python
-                    self.redirect = val[1:] # remove '>'
-                    self.redirect = strToYmd(self.redirect)
-                    
-                elif "\"" in val:
-                    val = val[1:] # remove first "
-                    val = val[:-1] # remove last "
-                    self.label = val
+        elif "/" in val:
+            sides = val.split("/")
+            try:
+                a, b = int(sides[0]), int(sides[1])
+                self.len = 0 if b == 0 else a / b
+            except ValueError:
+                print("UNSUPPORTED modifier: " + val)
 
-                elif "-" in val and len(val) >= 8:
-                    pass  # date value (YYYY-MM-DD or YYYY-MM), already parsed as self.date
+        else:
+            print("UNSUPPORTED modifier: " + val)
 
-                else:
-                    print("UNSUPPORTED assoc.value "+val)
-                    
-        
-            
-        pass
-
-    # ratio spent of the day working on task ; 0.5 is half day
     def getTimeSpent(self):
+        """Return fraction of a day worked (0.5 = half day, 1 = full day)."""
         return self.len
 
-    def getProject(self):
-        from packages.database.database import Database
-        return Database.instance.getProject(self.key)
-    
-    def getValue(self, uid):
-        if not self.hasValues():
-            return None
-        
-        for v in self.values:
-            if uid in v:
-                return v
-        
-        # NOT FOUND
-
-        return None
-    
-    def hasRedirectedDate(self):
-        return self.redirect != None
-
-    # output DATETIME
-    def getRedirectedDate(self):
-        if self.redirect == None:
-            return self.date
-        else:
-            return self.redirect
-
-    # datetime YYYY
     def isYear(self, dateY):
-        dt = self.getRedirectedDate()
-        return str(dateY.year) == str(dt.year)
-    
-    # datetime YYYY-mm
+        """True if this task falls in the given year datetime."""
+        return str(dateY.year) == str(self.date.year)
+
     def isMonth(self, dateYm):
-        
-        dt = self.getRedirectedDate()
+        """True if this task falls in the given month datetime."""
+        return dateYm.year == self.date.year and dateYm.month == self.date.month
 
-        if dateYm.year != dt.year:
-            return False
-        
-        if dateYm.month != dt.month:
-            return False
-        
-        # print("ok !")
-        return True
-    
-    # datetime YYYY-mm-dd
     def isDate(self, dateYmd):
+        """True if this task falls on the given date datetime."""
+        return dateYmd.year == self.date.year and dateYmd.month == self.date.month and dateYmd.day == self.date.day
 
-        # print(str(ym)+" VS "+str(self.date))
-        dt = self.getRedirectedDate()
-
-        if dateYmd.year != dt.year:
-            return False
-        
-        if dateYmd.month != dt.month:
-            return False
-        
-        if dateYmd.day != dt.day:
-            return False
-        
-        return True
-    
     def isDateRange(self, start, end):
-
-        dt = self.getRedirectedDate()
-
-        self.log(str(dt)+" VS ["+str(start)+","+str(end)+"]")
-
-        if dt < start:
+        """True if this task's date falls within [start, end] datetimes inclusive."""
+        self.log(str(self.date)+" VS ["+str(start)+","+str(end)+"]")
+        if self.date < start:
             self.log("<<")
             return False
-        
-        if dt > end :
+        if self.date > end:
             self.log(">>")
             return False
-        
         self.log("ok")
-
         return True
 
     def stringify(self):
-        output = "project:"+self.key
-        output += "    date:"+str(self.date)
-        if self.hasRedirectedDate(): output += " (redirect?"+str(self.getRedirectedDate())+")"
-        output += "     len:"+str(self.len)
-        return output
+        return f"project:{self.key}    date:{self.date}    len:{self.len}"
 
     def log(self, msg):
-
         if not self.verbose:
             return
-        
         print(self.key+" ? "+msg)
-    

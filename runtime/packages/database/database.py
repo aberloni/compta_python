@@ -16,7 +16,7 @@ from packages.database.creditor import Creditor
 from packages.database.statements import Statements
 
 # define : database enum
-DatabaseType = Enum('DatabaseType', ["bills", "infos","clients", "projects", "tasks", "statements", "creditors"])
+DatabaseType = Enum('DatabaseType', ["bills", "infos", "clients", "projects", "tasks", "statements", "creditors", "wiring"])
 
 class Database:
 
@@ -33,58 +33,42 @@ class Database:
         pass
     
     def init_all():
-        
+        """Load clients, tasks, projects, creditor, and statements."""
         instance = Database()
-        
+
         instance.clients = instance.fetch_clients()
         instance.tasks = instance.fetch_tasks()
-        
+
         instance.fetch_projects()
-        
+
         Creditor()
         Statements()
-        
+
         return instance
 
-    """
-    database init   : labels
-    """
     @staticmethod
     def init_labels():
-
+        """Load creditor and statements only (for main_labels.py / main_unpaid.py)."""
         instance = Database()
 
         Creditor()
         Statements()
-        
-        #print("imported x", len(instance.statements))
-        
+
         return instance
-    
-    """
-    database init   : billing
-        clients
-        tasks
-        projects
-    """
+
     @staticmethod
     def init_billing():
-        
-        # from os import walk
-
+        """Load clients, tasks, and projects (standard billing run)."""
         instance = Database()
 
-        instance.clients = instance.fetch_clients() # self.clients
+        instance.clients = instance.fetch_clients()
         instance.tasks = instance.fetch_tasks()
         instance.fetch_projects()
-        
+
         return instance
 
-    """
-        extract all self.tasks
-    """
     def fetch_tasks(self):
-
+        """Load all task entries from every .task file, returning a flat Task list."""
         import packages.database.task as task
         from modules.path import Path
         from modules.assocs import Assoc
@@ -96,15 +80,21 @@ class Database:
         output = []
 
         for f in taskFiles:
-            
+
             f = os.path.basename(f) # remove path
 
-            # _tasks = Assoc("tasks.compta", DatabaseSubFolders.tasks)
+            # extract YYYY-MM context from filename "tasks_2026-01.compta"
+            import re as _re
+            _m = _re.search(r'(\d{4}-\d{2})', f)
+            month_ctx = _m.group(1) if _m else None
+
             _tasks = Assoc(f, DatabaseType.tasks) # get all tasks from this tasks_file
 
             # add them all
             for t in _tasks.entries:
-                output.append(task.Task(t))
+                _t = task.Task(t, month_ctx)
+                if _t.key is not None:
+                    output.append(_t)
         
         if self.verbose:
             print("from tasks files = total tasks[] x", len(output))
@@ -112,7 +102,7 @@ class Database:
         return output
 
     def getClient(self, id):
-
+        """Return the Client with matching uid, or None."""
         if not hasattr(self, "clients"):
             print("no clients[]?")
             return None
@@ -130,7 +120,7 @@ class Database:
 
 
     def getProject(self, projectUid):
-
+        """Return the Project with matching uid, or None."""
         if not hasattr(self, "projects"):
             
             if self.verbose:
@@ -147,10 +137,8 @@ class Database:
 
 
 
-    """
-        returns :   clients[]
-    """
     def fetch_clients(self):
+        """Load all Client objects from the clients/ folder."""
         from packages.database.client import Client
         
         files = Path.getAllFilesFromDbType(DatabaseType.clients)
@@ -163,6 +151,7 @@ class Database:
         return output
 
     def fetch_projects(self):
+        """Load all Project objects, assigning tasks and generating bills."""
         from packages.database.project import Project
         files = Path.getAllFilesFromDbType(DatabaseType.projects)
         
@@ -182,22 +171,9 @@ class Database:
         
         return self.projects
         
-    def fetchFiles(self, dbType):
-        # self.clients
-        output = []
 
-        # files[] contains only file name, not path
-        files = os.listdir(configs.pathDatabase)
-        for f in files:
-            if dbType.name in f:
-                output.append(f)
-        
-        return output
-
-    # returns all bills of same week in date
-    # 
     def getWeekBills(self, date):
-        
+        """Return all bills across all projects that share the same week as `date`."""
         bills = []
         for p in self.projects:
             
@@ -215,6 +191,7 @@ class Database:
         return bills
 
     def countWeekBills(self, dt):
+        """Return the count of bills in the same week as `dt`."""
         bills = self.getWeekBills(dt)
         return len(bills)
     

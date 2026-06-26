@@ -4,14 +4,13 @@ from modules.system import *
 from modules.logger import *
 from modules.path import *
 
-"""
-a file from the database
-that can be parsed as a series of KEY:VALUE,VALUE,VALUE
+def _db_ext(dbType):
+    if dbType is None:
+        return configs.dbExtension
+    return configs.DB_EXTENSIONS.get(dbType.name, configs.dbExtension)
 
-params :
-    dbType is name of any subfolder/ of database/
-"""
 class Assoc:
+    """Parses a .compta file into AssocEntry[] (key:value lines)."""
 
     def __init__(self, fileName, dbType = None):
         
@@ -22,25 +21,24 @@ class Assoc:
         
         return self.createBySub(fileName, dbType)
 
-    # to check if file exists before calling constructor
     @staticmethod
     def has(fileName, dbType = None):
-        
-        # force add extension
-        if not configs.dbExtension in fileName:
-            fileName = fileName + configs.dbExtension
+        """Return True if the file exists in the given dbType folder."""
+        ext = _db_ext(dbType)
+        if ext not in fileName:
+            fileName = fileName + ext
 
         path = Path.getDbTypePath(dbType)
-        
+
         return hasFile(path + fileName)
 
         
         
-    # using LNK
     def createBySub(self, fileName, dbType):
-        
-        if not configs.dbExtension in fileName:
-            fileName = fileName + configs.dbExtension
+        """Load entries from a typed subfolder file (e.g. clients/, tasks/)."""
+        ext = _db_ext(dbType)
+        if ext not in fileName:
+            fileName = fileName + ext
   
         lines = Path.getLinesFromDbType(dbType, fileName)
 
@@ -49,7 +47,8 @@ class Assoc:
         self.solveEntries(lines)
 
     def create(self, fileName):
-        if not configs.dbExtension in fileName:
+        """Load entries from a file in the root database path (no subfolder)."""
+        if not any(ext in fileName for ext in configs.DB_EXTENSIONS.values()):
             fileName = fileName + configs.dbExtension
         
         lines = Path.getLinesDbFile(fileName)
@@ -57,7 +56,7 @@ class Assoc:
         self.solveEntries(lines)
     
     def solveEntries(self, lines):
-        
+        """Parse raw lines into self.entries (AssocEntry[])."""
         if lines == None:
             print("error:   'None' lines given  @"+self.fileName)
             return
@@ -69,10 +68,13 @@ class Assoc:
             return
         
         for i in range(0, len(lines)):
+            line = lines[i].strip()
+            if not line or line.startswith("#"):
+                continue
             self.entries.append(AssocEntry(lines[i]))
         
     def filterKeyContains(self, pattern):
-        
+        """Return first entry whose key is a substring of pattern."""
         for e in self.entries:
             if e.key.lower() in pattern.lower():
                 return e
@@ -81,9 +83,8 @@ class Assoc:
 
         return None
 
-    # returns value of that key
     def filterKey(self, key):
-
+        """Return the value of the first entry matching key, or None."""
         if self.entries == None:
             logError("no entries on Assoc@"+self.fileName)
             return None
@@ -95,12 +96,12 @@ class Assoc:
         return None
     
     def filterHtmlValue(self, key):
+        """Return value with '|' replaced by '<br/>' for HTML rendering."""
         value = self.filterKey(key)
         return value.replace("|","<br/>")
 
-    # list of all entries with given key
     def filterKeys(self, key):
-
+        """Return all entries matching key as a list."""
         output = []
         for i in range(0, len(self.entries)):
             _entry = self.entries[i]
@@ -114,11 +115,9 @@ class Assoc:
         return output
             
 
-"""
-key:value
-key:value,value,value
-"""
 class AssocEntry:
+    """One parsed line: key, value (str), values (list split on ',')."""
+
     def __init__(self, strData):
         
         if len(strData) <= 0:
@@ -145,10 +144,9 @@ class AssocEntry:
         pass
 
     def hasValues(self):
+        """True if values list is non-empty."""
         return len(self.values) > 0
-    
-    def isKey(self, key):
-        
-        # print(self.key+" == "+key)
 
+    def isKey(self, key):
+        """True if this entry's key matches exactly."""
         return self.key == key

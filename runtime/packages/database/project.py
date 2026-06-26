@@ -87,7 +87,7 @@ class Project:
         pass
     
     def dump(self):
-
+        """Print a debug summary of this project's tasks and bills."""
         print("=== dump ===")
         print(self.uid, " tasks[] ", len(self.tasks))
         
@@ -100,9 +100,8 @@ class Project:
         print("======")
         pass
     
-    # tasks injection in this project
-    #
     def assignTasks(self, tasks):
+        """Filter and attach tasks belonging to this project, then generate bills."""
         self.tasks = []
         for t in tasks:
             if t.key == self.uid:
@@ -117,13 +116,13 @@ class Project:
         pass
 
     def generateBills(self):
-        
+        """Parse the project's .bill file and populate self.bills."""
         from modules.assocs import Assoc
         from packages.database.database import DatabaseType
         from packages.database.bill import Bill
 
         # init
-        path = "bills_"+self.uid
+        path = self.uid
         self.bills = []
         
         # any bill file matching this project ?
@@ -163,27 +162,32 @@ class Project:
                     case "frais":
                         bill.addTransaction(overrideKey, e.value)
                         if self.verbose: print("+Frais :     "+overrideKey+"="+e.value)
-                        
+
+                    case "forfait":
+                        bill.forfait = float(e.value)
+                        if self.verbose: print("+Forfait :   "+e.value)
+
+                    case "jours":
+                        bill.jours = float(e.value)
+                        if self.verbose: print("+Jours :     "+e.value)
+
                     case "label":
-                        bill.label = e.value  # override label
+                        bill.label = e.value
                         if self.verbose: print("+Label :     "+bill.label)
-                    
+
                     case "designation":
-                        bill.designation = e.value # override designation
+                        bill.designation = e.value
                         if self.verbose: print("+Designation :   "+bill.designation)
-                    
-                    case "projet":
+
+                    case "objet":
                         self.name = e.value
-                        if self.verbose: print("(override)project name :   "+self.name)
+                        if self.verbose: print("+Objet :   "+self.name)
                         
         #print("bill : "+self.uid+" , solved x" ,len(self.bills))
                 
         
-    """
-    given years must be array of int
-    """
     def getBills(self, rangeDate = None):
-        
+        """Return bills overlapping rangeDate ['YYYY-MM', 'YYYY-MM'], or all bills if None."""
         if rangeDate == None:
             return self.bills
         
@@ -204,7 +208,7 @@ class Project:
         return ret
 
     def getBillsInDateRange(self, start, end):
-        
+        """Return bills whose period is fully contained within [start, end] datetimes."""
         _bills = []
         for b in self.bills:
             if b.isTimeframe(start, end):
@@ -212,10 +216,8 @@ class Project:
                 
         return _bills
 
-    # bill in same week as given date
-    #
     def getMatchingWeekBill(self, dateStr):
-
+        """Return the first bill of this project in the same week as dateStr ('YYYY-MM-DD')."""
         date = datetime.strptime(dateStr, "%Y-%m-%d")
 
         for b in self.bills:
@@ -226,9 +228,8 @@ class Project:
         
         return None
 
-    # return array of bills of same week date
-    #
     def getMatchingWeekBills(self, date):
+        """Return all bills of this project in the same week as `date` datetime."""
         output = []
 
         #week = datetime.strptime(date, "%Y-%m-%d")

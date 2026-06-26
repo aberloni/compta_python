@@ -25,8 +25,8 @@ app to generate billings
 
 	pip install weasyprint
 	pip install pdfplumber
+	pip install python-dateutil
 
-
-this needs some other dependencies fetches by using pango
+weasyprint needs additional system dependencies (pango, cairo):
 
 	https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation
