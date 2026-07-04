@@ -1,312 +1,145 @@
-# https://blog.aspose.com/pdf/create-pdf-files-in-python/
-
-# import pdfkit
-
-# pdfkit.from_file()
-
 from datetime import datetime
 import calendar
+import os
 
 from modules.assocs import Assoc
 from modules.path import Path
 from packages.database.database import Database, DatabaseType
 
-def wrapAssoc(id, label, value, wrapClass = ""):
-    
-    output = "<div id=\""+id+"\""
+# ─── template & CSS ───────────────────────────────────────────────────────────
 
-    if len(wrapClass) > 0:
-       output += "class=\""+wrapClass+"\""
-    
-    output += ">"
-    
-    output += "<span id=\""+id+"-label\" class=\"assocLabel\">"+label+"</span>"
-    output += "<span id=\""+id+"-value\" class=\"assocValue\">"+str(value)+"</span>"
-    output += "</div>"
+def _load_template():
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "bill_template.html")
+    with open(os.path.normpath(path), "r", encoding="utf-8") as f:
+        return f.read()
 
-    return output
+def _load_css():
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "bill_css.css")
+    with open(os.path.normpath(path), "r", encoding="utf-8") as f:
+        return f.read()
 
+# ─── line item builders ───────────────────────────────────────────────────────
 
-def wrapSection(section, content):
-    output = "<"+section+">"
+def _line_days(date, days, ht):
+    return (f'<div id="tasks-lines">'
+            f'<span class="task-date task-value">{date}</span>'
+            f'<span class="task-designation task-value">Prestation x {days:g} j</span>'
+            f'<span class="task-price task-value">{ht:g}€ HT</span>'
+            f'</div>')
 
-    output += content
+def _line_label(date, ht, label):
+    return (f'<div id="tasks-lines">'
+            f'<span class="task-date task-value">{date}</span>'
+            f'<span class="task-label task-value">{label}</span>'
+            f'<span class="task-price task-value">{ht:g}€ HT</span>'
+            f'</div>')
 
-    output += "</"+section+">"
+def _line_transaction(type_, label, qty, price):
+    return (f'<div id="tasks-lines">'
+            f'<span class="task-date"></span>'
+            f'<span class="task-designation">{type_} : {label} x {qty:g}</span>'
+            f'<span class="task-price">{price:g}€ TTC</span>'
+            f'</div>')
 
-    return output
+# ─── main entry point ─────────────────────────────────────────────────────────
 
-def generateHeader(project, bill=None):
+def generateHtml(project, bill, exportFileName):
 
-    if project == None:
-        print("no project ?")
-        return
+    autoe  = Assoc("autoe",   DatabaseType.infos)
+    statics = Assoc("statics", DatabaseType.infos)
+    rib    = Assoc("rib",     DatabaseType.infos)
+    client = bill.getClient()
 
-    output = "<div id=\"header\">"
-
-    autoe = Assoc("autoe", DatabaseType.infos)
-
-    # header : name & job
-    output += "<div id=\"job\">"
-    output += "<span id=\"job-personal-name\" class=\"vCenter\">"+autoe.filterKey("name")+"</span>"
-    output += "<span id=\"job-name\" class=\"vCenter\">"+autoe.filterKey("job")+"</span>"
-    output += "</div>"
-
-    # header : infos
-    output += "<div id=\"infos\">"
-
-    output += "<div id=\"infos-impots\" class=\"float\">"
-    output += "<div class=\"bold\">SIREN  "+autoe.filterKey("siren")+"</div>"
-    output += "<div class=\"bold\">N°TVA  "+autoe.filterKey("tva")+"</div>"
-    # output += "<div class=\"bold\">URSSAF "+autoe.filterKey("urssaf")+"</div>"
-    output += "</div>"
-
-    output += "<div id=\"infos-adresse-wrapper\" class=\"float\">"
-    output += "<div id=\"infos-adresse\" class=\"bold\">Adresse</div>"
-    output += "<div>"+autoe.filterHtmlValue("address")+"</div>"
-    output += "</div>"
-
-    output += "<div class=\"clear\"></div>"
-    output += "</div>"
-
-    # header : client — resolved at bill period start if bill is provided
-    client = bill.getClient() if bill is not None else project.client
-
-    output += "<div id=\"client\">"
-    output += "<div id=\"client-title\">CLIENT</div>"
-    output += "<div id=\"client-name\">"+client.name+"</div>"
-    output += "<div id=\"client-address\">"+client.assoc.filterHtmlValue("address")+"</div>"
-    output += "</div>"
-
-    output += "</div>" # /header
-
-    return output
-
-def generateLabeledTask(date, ht, label):
-    output = "<div id=\"tasks-lines\">"
-    output += "<span class=\"task-date task-value\">"+date+"</span>"
-    output += "<span class=\"task-label task-value\">"+label+"</span>"
-    output += "<span class=\"task-price task-value\">"+str(ht)+"€ HT</span>"
-    output += "</div>"
-    return output
-    
-# task with days
-def generateDaysTask(date, days, ht):
-    output = "<div id=\"tasks-lines\">"
-    output += "<span class=\"task-date task-value\">"+date+"</span>"
-    output += "<span class=\"task-designation task-value\">Prestation x "+str(days)+" j</span>"
-    output += "<span class=\"task-price task-value\">"+str(ht)+"€ HT</span>"
-    output += "</div>"
-    return output
-
-# transaction, frais
-def generateTasks(type, label, qty, totPrice):
-    
-    output = "<div id=\"tasks-lines\">"
-    output += "<span class=\"task-date\"></span>"
-    output += "<span class=\"task-designation\">"+type+" : "+label+" x "+str(qty)+"</span>"
-    output += "<span class=\"task-price\">"+str(totPrice)+"€ TTC</span>"
-    output += "</div>"
-    return output
-
-def generateBill(project, bill):
-
-    output = "<div id=\"bill\">"
-    
-    assoc = Assoc("statics", DatabaseType.infos)
-
-    output += wrapAssoc("bill-header", "FACTURE", bill.getFullUid())
-
-    # object title
-    output += "<div id=\"bill-object\">"
-    output += "<div id=\"bill-object-label\">OBJET</div>"
-    output += "<span id=\"bill-object-label-dec\">Prestation(s) pour le projet :</span>"
-    output += "<span id=\"bill-object-projectName\">"+project.name+"</span>"
-    output += "</div>"
-
-    # +additionnal designation
-    if len(bill.designation):
-        output += "<div id=\"bill-designation\">"+bill.designation+"</div>"
-
-    # array of days and amounts
-    output += "<div id=\"tasks\">"
-    
-    output += "<div id=\"tasks-header\">"
-    output += "<span class=\"task-date\">Date</span>"
-    output += "<span class=\"task-designation\">Designation</span>"
-    output += "<span class=\"task-price\">Prix</span>"
-    output += "</div>"
+    # ── line items ────────────────────────────────────────────────────────────
+    line_items = ""
 
     if bill.isForfait():
-
-        ht = bill.getHT()
+        ht   = bill.getHT()
         date = bill.getLabelDate()
-
-        if len(bill.label) > 0:
-            output += generateLabeledTask(date, ht, bill.label)
+        if bill.label:
+            line_items += _line_label(date, ht, bill.label)
         else:
-            output += generateDaysTask(date, bill.countDays(), ht)
-        
+            line_items += _line_days(date, bill.countDays(), ht)
     else:
-
         months = bill.getTimespanMonths()
-        
-        if len(months) <= 0:
-            exit("issue :    need month")
-        
-        #print("tasks months x", len(months))
-
+        if not months:
+            exit("issue: need month")
         for m in months:
-            
-            # YYYY-M (no leading 0)
-            #print("html:month:"+m)
-
             cnt = bill.countDays(m)
-            
-            # nothing to show
             if cnt <= 0:
                 continue
-
-            ht = bill.getHT(m)
-
-            dt = datetime.strptime(m, "%Y-%m")
-            year = str(dt.year)
-            month = str(dt.month)
-
-            htmlMonth = calendar.month_abbr[int(month)] # nov.
-            
-            if len(bill.label) > 0:
-                output += generateLabeledTask(htmlMonth+" "+year, ht, bill.label)
+            ht  = bill.getHT(m)
+            dt  = datetime.strptime(m, "%Y-%m")
+            lbl = calendar.month_abbr[dt.month] + " " + str(dt.year)
+            if bill.label:
+                line_items += _line_label(lbl, ht, bill.label)
             else:
-                output += generateDaysTask(htmlMonth+" "+year, cnt, ht)
+                line_items += _line_days(lbl, cnt, ht)
 
     if bill.hasTransactions():
         for t in bill.transactions:
-            output += generateTasks(t.getType(), t.label, t.quantity, t.solvePrice())
+            line_items += _line_transaction(t.getType(), t.label, t.quantity, t.solvePrice())
 
-    output += "</div>" # /tasks
+    # ── totals ────────────────────────────────────────────────────────────────
+    ht      = bill.getHT()
+    tva     = bill.getTVA()
+    abs_tva = bill.getTvaTotal()
+    ttc     = bill.getTTC()
+    perc    = f"{tva * 100:g}%"
 
-    cnt = bill.countDays()
-    ht = bill.getHT()
-    tva = bill.getTVA()
-    perc = str(tva * 100)+"%"
-
-    absTva = bill.getTvaTotal()
-    ttc = bill.getTTC()
-
-    output += "<div id=\"bill-total\">"
     _taux_range = project.getTauxRange(bill.start, bill.end)
     if len(_taux_range) > 1:
-        _taux_str = " → ".join(str(t) for t in _taux_range) + " € HT"
+        taux_str = " → ".join(f"{t:g}" for t in _taux_range) + " € HT"
     else:
-        _taux_str = str(_taux_range[0] if _taux_range else project.getTaux()) + " € HT"
-    output += wrapAssoc("taux", "taux", _taux_str)
-    output += wrapAssoc("totalHT", "Total HT", str(ht)+" € HT")
-    output += wrapAssoc("tva","TVA ("+perc+")", str(absTva)+" €")
-    
+        taux_str = f"{_taux_range[0] if _taux_range else project.getTaux():g} € HT"
+
+    frais_block = ""
     if bill.hasTransactions():
-        fraisTot = bill.getTransactionsTTC()
-        output += wrapAssoc("frais", "Total Frais", str(fraisTot)+" € TTC")
+        frais_tot = bill.getTransactionsTTC()
+        frais_block = (f'<div id="frais">'
+                       f'<span id="frais-label" class="assocLabel">Total Frais</span>'
+                       f'<span id="frais-value" class="assocValue">{frais_tot:g} € TTC</span>'
+                       f'</div>')
 
-    output += wrapAssoc("total","Total à régler", str(ttc)+" € TTC")
-    output += "</div>"
+    designation_block = ""
+    if bill.designation:
+        designation_block = f'<div id="bill-designation">{bill.designation}</div>'
 
-    output += "<div id=\"done\">Date de facturation : "+str(bill.uid)+"</div>"
+    # ── fill template ─────────────────────────────────────────────────────────
+    html = _load_template()
+    html = html.replace("{{css}}",               _load_css())
+    html = html.replace("{{title}}",             exportFileName)
+    html = html.replace("{{autoe_name}}",        autoe.filterKey("name"))
+    html = html.replace("{{autoe_job}}",         autoe.filterKey("job"))
+    html = html.replace("{{siren}}",             autoe.filterKey("siren"))
+    html = html.replace("{{tva_num}}",           autoe.filterKey("tva"))
+    html = html.replace("{{address}}",           autoe.filterHtmlValue("address"))
+    html = html.replace("{{client_name}}",       client.name)
+    html = html.replace("{{client_address}}",    client.assoc.filterHtmlValue("address"))
+    html = html.replace("{{bill_uid}}",          bill.getFullUid())
+    html = html.replace("{{project_name}}",      project.name)
+    html = html.replace("{{designation_block}}", designation_block)
+    html = html.replace("{{line_items}}",        line_items)
+    html = html.replace("{{taux}}",              taux_str)
+    html = html.replace("{{total_ht}}",          f"{ht:g}")
+    html = html.replace("{{tva_perc}}",          perc)
+    html = html.replace("{{tva_amount}}",        f"{abs_tva:g}")
+    html = html.replace("{{frais_block}}",       frais_block)
+    html = html.replace("{{total_ttc}}",         f"{ttc:g}")
+    html = html.replace("{{bill_date}}",         str(bill.uid))
+    html = html.replace("{{bill_limit}}",        str(bill.limit))
+    html = html.replace("{{dispense}}",          statics.filterKey("dispense"))
+    html = html.replace("{{rib_titulaire}}",     rib.filterKey("titulaire"))
+    html = html.replace("{{rib_bank}}",          rib.filterHtmlValue("bank"))
+    html = html.replace("{{rib_iban}}",          rib.filterKey("iban"))
+    html = html.replace("{{rib_bic}}",           rib.filterKey("bic"))
+    html = html.replace("{{email}}",             autoe.filterKey("email"))
+    html = html.replace("{{phone}}",             autoe.filterKey("phone"))
 
-    output += "<div id=\"done-paiement\">Echéance au "+str(bill.limit)+" (Paiement sous 30 jours)</div>"
+    # ── write ─────────────────────────────────────────────────────────────────
+    export_path = Database.folderExportBilling() + exportFileName + ".html"
+    with open(export_path, "w", encoding="utf-8") as f:
+        f.write(html)
 
-    output += "</div>" # /bill
-
-    output += "<div id=\"dispense\">"+assoc.filterKey("dispense")+"</div>"
-
-    return output
-
-def generateRib():
-    output = ""
-
-    rib = Assoc("rib", DatabaseType.infos)
-
-    output += "<hr/>"
-    output += "<div id=\"rib\">"
-    
-    output += wrapAssoc("rib-title", "RIB", "")
-    output += wrapAssoc("titulaire", "Titulaire", rib.filterKey("titulaire"))
-    output += wrapAssoc("bank", "Banque", rib.filterHtmlValue("bank"))
-    # output += wrapAssoc("domicile", "Domiciliation", rib.filterHtmlValue("domiciliation"))
-    # output += wrapAssoc("refs", "References bancaires", rib.filterKey("refs"))
-    output += wrapAssoc("iban", "IBAN", rib.filterKey("iban"))
-    output += wrapAssoc("bic", "BIC SWIFT", rib.filterKey("bic"))
-
-    output += "</div>"
-
-    return output
-
-def generateContact():
-    output = ""
-
-    autoe = Assoc("autoe", DatabaseType.infos)
-
-    output += "<div id=\"contact\">"
-    
-    output += wrapAssoc("email", "Email", autoe.filterKey("email"))
-    output += wrapAssoc("phone", "Mobile", autoe.filterKey("phone"))
-    
-    output += "</div>"
-
-    return output
-
-
-def generateHtml(project, bill, exportFileName):
-    #print("---HTML GENERATOR---")
-    
-    if project == None:
-        print("no project ?")
-        return
-    
-    html = ""
-
-    # HEAD 
-    
-    head = ""
-    head += "<title>"+exportFileName+"</title>"
-    #head += "<link rel=\"stylesheet\" type=\"text/css\" href=\"../css.css\" />"
-    head += "<style>"
-
-    fcss = open("css.css", "r")
-    css = fcss.read()
-
-    head += css
-
-    head += "</style>"
-    # head += "<meta charset=\"UTF-8\" />"
-
-    # ...
-    html += wrapSection("head", head)
-
-    # BODY
-    body = "<div id=\"canvas\">"
-
-    body += generateHeader(project, bill)
-
-    body += generateBill(project, bill)
-
-    body += generateRib()
-    body += generateContact()
-
-    body += "</div>"
-
-    html += wrapSection("body", body)
-
-    # final wrapping
-    html = wrapSection("html", html)
-
-    exportPath = Database.folderExportBilling()
-    exportPath += exportFileName + ".html"
-
-    f = open(exportPath, "w")
-    f.write(html)
-    f.close()
-
-    print("     generated HTML : "+exportFileName)
-
-    return exportPath
+    print("     generated HTML : " + exportFileName)
+    return export_path

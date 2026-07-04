@@ -6,8 +6,8 @@ from modules.path import *
 
 def _db_ext(dbType):
     if dbType is None:
-        return configs.dbExtension
-    return configs.DB_EXTENSIONS.get(dbType.name, configs.dbExtension)
+        return ".compta"
+    return configs.DB_EXTENSIONS.get(dbType.name, ".compta")
 
 class Assoc:
     """Parses a .compta file into AssocEntry[] (key:value lines)."""
@@ -49,7 +49,7 @@ class Assoc:
     def create(self, fileName):
         """Load entries from a file in the root database path (no subfolder)."""
         if not any(ext in fileName for ext in configs.DB_EXTENSIONS.values()):
-            fileName = fileName + configs.dbExtension
+            fileName = fileName + ".compta"
         
         lines = Path.getLinesDbFile(fileName)
 

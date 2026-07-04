@@ -4,6 +4,7 @@
 """
 
 import os
+import configs
 
 from datetime import datetime
 
@@ -30,4 +31,4 @@ view.solve(strStart, monthCount)
 
 #for m in view.months: m.logDuplicates(2)
 
-exit()
+input("\nEntrée pour fermer...")

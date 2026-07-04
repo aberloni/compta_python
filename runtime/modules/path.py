@@ -2,25 +2,10 @@ from modules.system import *
 
 class Path:
 
-    localDatabase = False
-    shkExternal = "externals"
-
-    def getLnkPath(pathLnk):
-        if not pathLnk.endswith(".lnk"):
-            pathLnk += ".lnk"
-        absPath = getExtractShkPath(pathLnk)
-        return absPath
-
-    @staticmethod
-    def getExternalPath():
-        import configs
-        if configs.testMode:
-            return configs.testDbPath
-        return Path.getLnkPath(Path.shkExternal)
-
     @staticmethod
     def getDbPath():
-        return Path.getExternalPath() + "database/"
+        import configs
+        return configs.dbPath + "database/"
 
     @staticmethod
     def getExportFolderPath():

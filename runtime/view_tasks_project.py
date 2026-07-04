@@ -10,22 +10,21 @@ One tab per project. Each tab shows:
 import locale
 import sys
 import traceback
+import os
+from datetime import datetime
+from collections import defaultdict
+
+import configs
 
 def _excepthook(etype, value, tb):
     traceback.print_exception(etype, value, tb)
-    if configs.pause_on_exit: if configs.pause_on_exit: input("\nEntrée pour fermer...")
+    if configs.pause_on_exit: input("\nEntrée pour fermer...")
 sys.excepthook = _excepthook
 
 try:
     locale.setlocale(locale.LC_ALL, 'fr_FR')
 except locale.Error:
     locale.setlocale(locale.LC_ALL, '')
-
-import os
-from datetime import datetime
-from collections import defaultdict
-
-import configs
 from packages.database.database import Database
 
 # ─── load ─────────────────────────────────────────────────────────────────────
@@ -214,12 +213,6 @@ html = f"""<!DOCTYPE html>
   td {{ padding: 4px 14px; font-size: 12px; }}
   .num {{ text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }}
   .total-row td {{ font-weight: 600; border-top: 2px solid #eee; color: #555; padding-top: 6px; }}
-
-  /* section sub-headers inside month */
-  .section-header td {{ font-size: 9px; text-transform: uppercase; letter-spacing: .06em;
-                        color: #aaa; padding: 6px 14px 2px; background: #fafafa; }}
-  .unbilled-h td {{ color: #b07a00; background: #fffbf0; }}
-  .zero-h td {{ color: #c62828; background: #fdecea; }}
 
   /* row colours */
   .billed-row td {{ color: #2e7d32; }}

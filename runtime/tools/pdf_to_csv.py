@@ -1,11 +1,11 @@
 """
 pdf_to_csv.py
-Extrait les transactions de tous les PDFs dans tools/releves/ → CSV
+Extrait les transactions de tous les PDFs dans database/releves/ → CSV
 
 Usage:
-    python tools/pdf_to_csv.py
+    python runtime/pdf_to_csv.py
 
-Un CSV par PDF, généré dans tools/releves/
+Un CSV par PDF, généré dans database/releves/
 """
 
 import sys
@@ -167,7 +167,7 @@ def to_csv(transactions: list[dict], output_path: str):
 # Main
 # ---------------------------------------------------------------------------
 
-RELEVES_DIR = Path(__file__).parent / "releves"
+RELEVES_DIR = Path(__file__).parent.parent / "database" / "releves"
 
 if __name__ == "__main__":
     if not RELEVES_DIR.exists():

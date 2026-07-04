@@ -54,4 +54,5 @@ def exportBill(project, bill):
     # generate PDF
     if configs.creatPdf:
         HTML(htmlPath).write_pdf(exportPath+billFileName+".pdf")
+        os.remove(htmlPath)
 

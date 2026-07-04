@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<title>{{title}}</title>
+<style>{{css}}</style>
+</head>
+<body>
+<div id="canvas">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div id="job">
+      <span id="job-personal-name" class="vCenter">{{autoe_name}}</span>
+      <span id="job-name" class="vCenter">{{autoe_job}}</span>
+    </div>
+    <div id="infos">
+      <div id="infos-impots" class="float">
+        <div class="bold">SIREN  {{siren}}</div>
+        <div class="bold">N°TVA  {{tva_num}}</div>
+      </div>
+      <div id="infos-adresse-wrapper" class="float">
+        <div id="infos-adresse" class="bold">Adresse</div>
+        <div>{{address}}</div>
+      </div>
+      <div class="clear"></div>
+    </div>
+    <div id="client">
+      <div id="client-title">CLIENT</div>
+      <div id="client-name">{{client_name}}</div>
+      <div id="client-address">{{client_address}}</div>
+    </div>
+  </div>
+
+  <!-- BILL -->
+  <div id="bill">
+
+    <div id="bill-header">
+      <span id="bill-header-label">FACTURE</span>
+      <span id="bill-header-value" class="assocValue">{{bill_uid}}</span>
+    </div>
+
+    <div id="bill-object">
+      <div id="bill-object-label">OBJET</div>
+      <span id="bill-object-label-dec">Prestation(s) pour le projet :</span>
+      <span id="bill-object-projectName">{{project_name}}</span>
+    </div>
+
+    {{designation_block}}
+
+    <div id="tasks">
+      <div id="tasks-header">
+        <span class="task-date">Date</span>
+        <span class="task-designation">Designation</span>
+        <span class="task-price">Prix</span>
+      </div>
+      {{line_items}}
+    </div>
+
+    <div id="bill-total">
+      <div id="taux"><span id="taux-label" class="assocLabel">taux</span><span id="taux-value" class="assocValue">{{taux}}</span></div>
+      <div id="totalHT"><span id="totalHT-label" class="assocLabel">Total HT</span><span id="totalHT-value" class="assocValue">{{total_ht}} € HT</span></div>
+      <div id="tva"><span id="tva-label" class="assocLabel">TVA ({{tva_perc}})</span><span id="tva-value" class="assocValue">{{tva_amount}} €</span></div>
+      {{frais_block}}
+      <div id="total"><span id="total-label" class="assocLabel">Total à régler</span><span id="total-value" class="assocValue">{{total_ttc}} € TTC</span></div>
+    </div>
+
+    <div id="done">Date de facturation : {{bill_date}}</div>
+    <div id="done-paiement">Echéance au {{bill_limit}} (Paiement sous 30 jours)</div>
+
+  </div>
+
+  <div id="dispense">{{dispense}}</div>
+
+  <!-- RIB -->
+  <hr/>
+  <div id="rib">
+    <div id="rib-title"><span id="rib-title-label" class="assocLabel">RIB</span><span id="rib-title-value" class="assocValue"></span></div>
+    <div id="titulaire"><span id="titulaire-label" class="assocLabel">Titulaire</span><span id="titulaire-value" class="assocValue">{{rib_titulaire}}</span></div>
+    <div id="bank"><span id="bank-label" class="assocLabel">Banque</span><span id="bank-value" class="assocValue">{{rib_bank}}</span></div>
+    <div id="iban"><span id="iban-label" class="assocLabel">IBAN</span><span id="iban-value" class="assocValue">{{rib_iban}}</span></div>
+    <div id="bic"><span id="bic-label" class="assocLabel">BIC SWIFT</span><span id="bic-value" class="assocValue">{{rib_bic}}</span></div>
+  </div>
+
+  <!-- CONTACT -->
+  <div id="contact">
+    <div id="email"><span id="email-label" class="assocLabel">Email</span><span id="email-value" class="assocValue">{{email}}</span></div>
+    <div id="phone"><span id="phone-label" class="assocLabel">Mobile</span><span id="phone-value" class="assocValue">{{phone}}</span></div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,11 +1,8 @@
 __*
 
-/database*
 /export*
 /samples*
 
-externals.lnk
-
-tools/releves
-externals/database
-externals
+database/
+database/
+externals/

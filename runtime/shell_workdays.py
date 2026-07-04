@@ -4,6 +4,7 @@
 """
 
 import locale
+import configs
 locale.setlocale(locale.LC_ALL, 'fr_FR')
 
 # DATABASE LOADER
@@ -52,4 +53,4 @@ for y in yTasks:
 
     print(str(perc)+"% non-worked days")
 
-exit()
+input("\nEntrée pour fermer...")

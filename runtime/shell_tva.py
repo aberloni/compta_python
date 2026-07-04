@@ -36,7 +36,7 @@ for p in db.projects:
         ttc = b.getTTC()
         tva = b.getTvaTotal()
 
-        print(b.getFullUID()+" >> HT : "+str(ht)+" | TTC : "+str(ttc)+" | TVA : "+str(tva))
+        print(f"{b.getFullUid()} >> HT : {ht:g} | TTC : {ttc:g} | TVA : {tva:g}")
 
 print("done")
-exit()
+input("\nEntrée pour fermer...")

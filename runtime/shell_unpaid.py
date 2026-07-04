@@ -1,4 +1,5 @@
 import locale
+import configs
 
 locale.setlocale(locale.LC_ALL, 'fr_FR')
 
@@ -54,5 +55,6 @@ print("bills x "+str(len(bills)))
 
 unpaids = []
 for b in bills:
-    
     pass
+
+input("\nEntrée pour fermer...")
