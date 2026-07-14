@@ -24,21 +24,21 @@ def _line_days(date, days, ht):
     return (f'<div id="tasks-lines">'
             f'<span class="task-date task-value">{date}</span>'
             f'<span class="task-designation task-value">Prestation x {days:g} j</span>'
-            f'<span class="task-price task-value">{ht:g}€ HT</span>'
+            f'<span class="task-price task-value">{ht:.2f} € HT</span>'
             f'</div>')
 
 def _line_label(date, ht, label):
     return (f'<div id="tasks-lines">'
             f'<span class="task-date task-value">{date}</span>'
             f'<span class="task-label task-value">{label}</span>'
-            f'<span class="task-price task-value">{ht:g}€ HT</span>'
+            f'<span class="task-price task-value">{ht:.2f} € HT</span>'
             f'</div>')
 
 def _line_transaction(type_, label, qty, price):
     return (f'<div id="tasks-lines">'
             f'<span class="task-date"></span>'
             f'<span class="task-designation">{type_} : {label} x {qty:g}</span>'
-            f'<span class="task-price">{price:g}€ TTC</span>'
+            f'<span class="task-price">{price:.2f} € TTC</span>'
             f'</div>')
 
 # ─── main entry point ─────────────────────────────────────────────────────────
@@ -89,21 +89,36 @@ def generateHtml(project, bill, exportFileName):
 
     _taux_range = project.getTauxRange(bill.start, bill.end)
     if len(_taux_range) > 1:
-        taux_str = " → ".join(f"{t:g}" for t in _taux_range) + " € HT"
+        taux_str = " → ".join(f"{t:.2f}" for t in _taux_range)
     else:
-        taux_str = f"{_taux_range[0] if _taux_range else project.getTaux():g} € HT"
+        taux_str = f"{_taux_range[0] if _taux_range else project.getTaux():.2f}"
+
+    tva_block = ""
+    if tva > 0:
+        tva_block = (f'<div id="tva"><span id="tva-label" class="assocLabel">TVA ({perc})</span>'
+                     f'<span id="tva-value" class="assocValue">'
+                     f'<span class="amount">{abs_tva:.2f}</span><span class="currency">€</span><span class="unit"></span>'
+                     f'</span></div>')
 
     frais_block = ""
     if bill.hasTransactions():
         frais_tot = bill.getTransactionsTTC()
         frais_block = (f'<div id="frais">'
                        f'<span id="frais-label" class="assocLabel">Total Frais</span>'
-                       f'<span id="frais-value" class="assocValue">{frais_tot:g} € TTC</span>'
-                       f'</div>')
+                       f'<span id="frais-value" class="assocValue">'
+                       f'<span class="amount">{frais_tot:.2f}</span><span class="currency">€</span><span class="unit">TTC</span>'
+                       f'</span></div>')
 
     designation_block = ""
     if bill.designation:
         designation_block = f'<div id="bill-designation">{bill.designation}</div>'
+
+    mention_block = ""
+    country_info = client.getCountryInfo()
+    if country_info:
+        mention = country_info.filterKey("mention")
+        if mention:
+            mention_block = f'<div id="country-mention" class="mention">{mention}</div>'
 
     # ── fill template ─────────────────────────────────────────────────────────
     html = _load_template()
@@ -115,20 +130,26 @@ def generateHtml(project, bill, exportFileName):
     html = html.replace("{{tva_num}}",           autoe.filterKey("tva"))
     html = html.replace("{{address}}",           autoe.filterHtmlValue("address"))
     html = html.replace("{{client_name}}",       client.name)
-    html = html.replace("{{client_address}}",    client.assoc.filterHtmlValue("address"))
+    client_address = client.assoc.filterHtmlValue("address")
+    if client.country != "FR":
+        client_address += f" ({client.country})"
+    if client.tva_number:
+        client_address += f"<br/>TVA : {client.tva_number}"
+    html = html.replace("{{client_address}}",    client_address)
     html = html.replace("{{bill_uid}}",          bill.getFullUid())
     html = html.replace("{{project_name}}",      project.name)
     html = html.replace("{{designation_block}}", designation_block)
+    html = html.replace("{{mention_block}}",     mention_block)
     html = html.replace("{{line_items}}",        line_items)
     html = html.replace("{{taux}}",              taux_str)
-    html = html.replace("{{total_ht}}",          f"{ht:g}")
-    html = html.replace("{{tva_perc}}",          perc)
-    html = html.replace("{{tva_amount}}",        f"{abs_tva:g}")
+    html = html.replace("{{total_ht}}",          f"{ht:.2f}")
+    html = html.replace("{{tva_block}}",         tva_block)
     html = html.replace("{{frais_block}}",       frais_block)
-    html = html.replace("{{total_ttc}}",         f"{ttc:g}")
+    html = html.replace("{{total_ttc}}",         f"{ttc:.2f}")
     html = html.replace("{{bill_date}}",         str(bill.uid))
     html = html.replace("{{bill_limit}}",        str(bill.limit))
     html = html.replace("{{dispense}}",          statics.filterKey("dispense"))
+    html = html.replace("{{operation}}",         statics.filterKey("operation"))
     html = html.replace("{{rib_titulaire}}",     rib.filterKey("titulaire"))
     html = html.replace("{{rib_bank}}",          rib.filterHtmlValue("bank"))
     html = html.replace("{{rib_iban}}",          rib.filterKey("iban"))

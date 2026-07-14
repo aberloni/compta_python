@@ -3,6 +3,7 @@ from packages.database.database import Database, DatabaseType
 from packages.database.bill import BillTransaction
 
 from modules.assocs import Assoc
+from modules.system import parseFlexibleDate
 
 from datetime import datetime
 
@@ -22,7 +23,7 @@ def _parse_dated_entries(entries):
         v = e.value
         if "=" in v:
             parts = v.split("=", 1)
-            dt = datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+            dt = parseFlexibleDate(parts[0].strip(), use_first_day=True)
             dated.append((dt, parts[1].strip()))
         else:
             base = v
@@ -54,7 +55,7 @@ def _parse_taux_entries(entries):
         v = e.value
         if "=" in v:
             parts = v.split("=", 1)
-            dt = datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+            dt = parseFlexibleDate(parts[0].strip(), use_first_day=True)
             dated.append((dt, int(parts[1].strip())))
         else:
             base = int(v)

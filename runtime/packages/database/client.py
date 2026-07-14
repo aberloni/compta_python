@@ -16,8 +16,20 @@ class Client:
         self.uid = self.assoc.filterKey("uid")
         self.name = self.assoc.filterKey("name")
         self.creditor = self.assoc.filterKey("creditor")
-        
+        self.country = (self.assoc.filterKey("country") or "FR").upper()
+        self.tva_number = self.assoc.filterKey("tva")
+
         pass
+
+    def getCountryInfo(self):
+        """Return the Assoc for infos/{country}.info (tva rate, invoice mention), or None if not defined."""
+        from modules.assocs import Assoc
+        from packages.database.database import DatabaseType
+
+        if not Assoc.has(self.country, DatabaseType.infos):
+            return None
+
+        return Assoc(self.country, DatabaseType.infos)
 
     def getBillsInTimeFrame(self, dtStart, dtEnd):
         

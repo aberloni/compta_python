@@ -22,6 +22,13 @@ db = Database.init_billing()
 from packages.export.exporter import *
 from modules.path import Path
 
+# clear previous exports before regenerating
+billingPath = Path.getExportBillingPath()
+os.makedirs(billingPath, exist_ok=True)
+for f in os.listdir(billingPath):
+    if f.endswith((".html", ".pdf", ".dump")):
+        os.remove(os.path.join(billingPath, f))
+
 qty = len(db.projects)
 
 print("\n\nbilling.solved :     projects x"+str(qty))

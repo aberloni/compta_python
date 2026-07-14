@@ -32,6 +32,9 @@ db = Database.init_billing()
 
 # ─── assign a stable color per project ────────────────────────────────────────
 
+OFF_COLOR   = "#b3e5fc"   # light blue — reserved for off/congé days
+CHOME_COLOR = "#d0d0d0"   # grey — reserved for chômé (no info) days
+
 PALETTE = [
     "#ffadad", "#ffd6a5", "#fdffb6", "#caffbf", "#9bf6ff",
     "#a0c4ff", "#bdb2ff", "#ffc6ff", "#fffffc", "#b5ead7",
@@ -58,6 +61,24 @@ for p in db.projects:
             "name":  p.name,
             "days":  t.getTimeSpent(),
             "color": project_colors[p.uid],
+        })
+
+for t in db.tasks:
+    if t.is_off:
+        d = t.date.date() if hasattr(t.date, 'date') else t.date
+        by_date[d].append({
+            "uid":   "off",
+            "name":  "Congé",
+            "days":  t.getTimeSpent(),
+            "color": OFF_COLOR,
+        })
+    elif t.is_chome:
+        d = t.date.date() if hasattr(t.date, 'date') else t.date
+        by_date[d].append({
+            "uid":   "chome",
+            "name":  "Chômé",
+            "days":  t.getTimeSpent(),
+            "color": CHOME_COLOR,
         })
 
 # sort entries within each day by days desc
@@ -97,7 +118,8 @@ def render_month(ym):
 
         day_total = sum(e["days"] for e in entries)
         for e in entries:
-            total_by_project[e["uid"]] += e["days"]
+            if e["uid"] not in ("off", "chome"):
+                total_by_project[e["uid"]] += e["days"]
 
         weekend_cls = " weekend" if weekday >= 5 else ""
         today_cls   = " today"   if d == date.today() else ""
@@ -144,14 +166,34 @@ def render_month(ym):
     month_total = sum(total_by_project.values())
     legend += f'<div class="legend-item total-legend"><span class="legend-dot"></span>Total<span class="legend-days">{fmt_days(month_total)}</span></div>'
 
+    off_total = sum(
+        e["days"]
+        for d, entries in by_date.items()
+        if d.year == year and d.month == month
+        for e in entries if e["uid"] == "off"
+    )
+    if off_total > 0:
+        legend += f'<div class="legend-item off-legend"><span class="legend-dot" style="background:{OFF_COLOR}"></span>Congé<span class="legend-days">{fmt_days(off_total)}</span></div>'
+
+    chome_total = sum(
+        e["days"]
+        for d, entries in by_date.items()
+        if d.year == year and d.month == month
+        for e in entries if e["uid"] == "chome"
+    )
+    if chome_total > 0:
+        legend += f'<div class="legend-item chome-legend"><span class="legend-dot" style="background:{CHOME_COLOR}"></span>Chômé<span class="legend-days">{fmt_days(chome_total)}</span></div>'
+
     headers = "".join(f'<div class="day-header">{h}</div>' for h in DAY_HEADERS)
 
-    state_legend = """
+    state_legend = f"""
     <div class="state-legend">
       <span class="state-item"><span class="state-swatch" style="background:#f0f0f0"></span>Aucune tâche</span>
       <span class="state-item"><span class="state-swatch" style="background:#fafafa;border:1px solid #eee"></span>Weekend</span>
       <span class="state-item"><span class="state-swatch" style="background:#fffbe6"></span>Aujourd'hui</span>
       <span class="state-item"><span class="state-swatch" style="background:#fdecea"></span>Jour × 0</span>
+      <span class="state-item"><span class="state-swatch" style="background:{OFF_COLOR}"></span>Congé</span>
+      <span class="state-item"><span class="state-swatch" style="background:{CHOME_COLOR}"></span>Chômé</span>
     </div>"""
 
     return f"""
@@ -164,16 +206,39 @@ def render_month(ym):
 
 # ─── build tabs ───────────────────────────────────────────────────────────────
 
-tabs_nav = ""
-tabs_content = ""
-current_ym = datetime.now().strftime("%Y-%m")
+MONTH_ABBR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
 
-for i, ym in enumerate(months_with_data):
-    tid    = f"tab-{ym}"
-    active = "active" if ym == current_ym or (i == 0 and current_ym not in months_with_data) else ""
-    label  = datetime.strptime(ym, "%Y-%m").strftime("%b %Y").capitalize()
-    tabs_nav     += f'<button class="tab-btn {active}" onclick="showTab(\'{tid}\')" id="btn-{tid}">{label}</button>'
+years_available = defaultdict(set)
+for ym in months_with_data:
+    y, m = int(ym[:4]), int(ym[5:])
+    years_available[y].add(m)
+
+years_sorted = sorted(years_available.keys(), reverse=True)
+
+current_ym = datetime.now().strftime("%Y-%m")
+if current_ym in months_with_data:
+    sel_year, sel_month = int(current_ym[:4]), int(current_ym[5:])
+else:
+    latest = months_with_data[0]
+    sel_year, sel_month = int(latest[:4]), int(latest[5:])
+
+tabs_content = ""
+for ym in months_with_data:
+    tid = f"tab-{ym}"
+    active = "active" if ym == f"{sel_year}-{sel_month:02d}" else ""
     tabs_content += f'<div class="tab-panel {active}" id="{tid}">{render_month(ym)}</div>'
+
+years_nav = ""
+for y in years_sorted:
+    active = "active" if y == sel_year else ""
+    years_nav += f'<button class="tab-btn year-btn {active}" onclick="selectYear({y})" id="btn-year-{y}">{y}</button>'
+
+months_nav = ""
+for m in range(1, 13):
+    active = "active" if m == sel_month else ""
+    months_nav += f'<button class="tab-btn month-btn {active}" onclick="selectMonth({m})" id="btn-month-{m}">{MONTH_ABBR[m-1]}</button>'
+
+years_data_js = "{" + ",".join(f'"{y}":[{",".join(str(m) for m in sorted(ms))}]' for y, ms in years_available.items()) + "}"
 
 # ─── assemble ─────────────────────────────────────────────────────────────────
 
@@ -197,6 +262,7 @@ html = f"""<!DOCTYPE html>
               color: #555; transition: background .15s; }}
   .tab-btn:hover {{ background: #f0f0f0; }}
   .tab-btn.active {{ background: #222; color: #fff; border-color: #222; }}
+  .tab-btn.disabled {{ opacity: .3; pointer-events: none; }}
   .tab-panel {{ display: none; }}
   .tab-panel.active {{ display: block; }}
 
@@ -250,17 +316,56 @@ html = f"""<!DOCTYPE html>
 <h1>Tasks — calendrier</h1>
 <div class="meta">Généré le {generated_at}</div>
 
-<div class="tabs-nav">{tabs_nav}</div>
+<div class="tabs-nav">{months_nav}</div>
+<div class="tabs-nav">{years_nav}</div>
 
 {tabs_content}
 
 <script>
-function showTab(id) {{
+const YEARS_DATA = {years_data_js};
+let selectedYear = {sel_year};
+let selectedMonth = {sel_month};
+
+function render() {{
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.getElementById('btn-' + id).classList.add('active');
+  const ym = selectedYear + '-' + String(selectedMonth).padStart(2, '0');
+  const panel = document.getElementById('tab-' + ym);
+  if (panel) panel.classList.add('active');
+
+  document.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-year-' + selectedYear).classList.add('active');
+
+  document.querySelectorAll('.month-btn').forEach(b => {{
+    b.classList.remove('active');
+    b.classList.remove('disabled');
+  }});
+  document.getElementById('btn-month-' + selectedMonth).classList.add('active');
+
+  const available = YEARS_DATA[selectedYear] || [];
+  for (let m = 1; m <= 12; m++) {{
+    if (!available.includes(m)) {{
+      document.getElementById('btn-month-' + m).classList.add('disabled');
+    }}
+  }}
 }}
+
+function selectYear(y) {{
+  selectedYear = y;
+  const available = YEARS_DATA[y] || [];
+  if (!available.includes(selectedMonth)) {{
+    selectedMonth = available[available.length - 1];
+  }}
+  render();
+}}
+
+function selectMonth(m) {{
+  const available = YEARS_DATA[selectedYear] || [];
+  if (!available.includes(m)) return;
+  selectedMonth = m;
+  render();
+}}
+
+render();
 </script>
 </body>
 </html>"""

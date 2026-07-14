@@ -85,6 +85,14 @@ class Task:
         else:
             print("UNSUPPORTED modifier: " + val)
 
+    @property
+    def is_off(self):
+        return self.key == "off"
+
+    @property
+    def is_chome(self):
+        return self.key == "chome"
+
     def getTimeSpent(self):
         """Return fraction of a day worked (0.5 = half day, 1 = full day)."""
         return self.len

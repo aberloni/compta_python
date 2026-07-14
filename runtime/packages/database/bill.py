@@ -64,10 +64,13 @@ class Bill:
 
         self.log("    bill.range : "+_dtSplit[0]+" -> "+_dtSplit[1])
 
-        self.start = datetime.strptime(_dtSplit[0].strip(), "%Y-%m-%d")
+        try:
+            self.start = self.parse_date(_dtSplit[0].strip(), use_first_day=True)
+        except ValueError:
+            print("ERROR : invalid date : ", _dtSplit[0])
 
         try:
-            self.end = datetime.strptime(_dtSplit[1].strip(), "%Y-%m-%d")
+            self.end = self.parse_date(_dtSplit[1].strip())
         except ValueError:
             print("ERROR : invalid date : ", _dtSplit[1])
 
@@ -95,21 +98,9 @@ class Bill:
         """True if the bill date falls in the given year (int)."""
         return int(self.getDatetime().strftime("%Y")) == int(year)
 
-    def parse_date(self, s):
+    def parse_date(self, s, use_first_day=False):
         """Parse a date string accepting YYYY-MM-DD, YYYY-MM (→ last day) or YYYY (→ Dec 31)."""
-        FORMATS = ["%Y-%m-%d", "%Y-%m", "%Y"]
-        for fmt in FORMATS:
-            try:
-                dt = datetime.strptime(s, fmt)
-                if fmt == "%Y-%m":
-                    last_day = calendar.monthrange(dt.year, dt.month)[1]
-                    return datetime(dt.year, dt.month, last_day)
-                if fmt == "%Y":
-                    return datetime(dt.year, 12, 31)
-                return dt
-            except ValueError:
-                continue
-        raise ValueError(f"Date '{s}' does not match expected formats")
+        return parseFlexibleDate(s, use_first_day)
 
     def isDateRangeOverlap(self, range):
         """True if this bill's period overlaps with the given [start, end] string range."""
@@ -185,7 +176,24 @@ class Bill:
         return total
 
     def getTVA(self):
-        """Return TVA rate as a float (e.g. 0.2)."""
+        """Return TVA rate as a float (e.g. 0.2).
+        Client's country info (infos/{country}.info) overrides the project's base tva if set.
+        Foreign clients (country != FR) with no explicit tva default to 0 (intracommunautaire /
+        hors UE — pas de TVA française à appliquer). French clients fall back to the project's
+        base tva (rétrocompatibilité)."""
+        client = self.getClient()
+        country = client.country if client else "FR"
+
+        if client:
+            info = client.getCountryInfo()
+            if info:
+                val = info.filterKey("tva")
+                if val is not None:
+                    return float(val)
+
+        if country != "FR":
+            return 0.0
+
         return float(self.project.assoc.filterKey("tva"))
 
     def getTvaTotal(self):

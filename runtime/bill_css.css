@@ -165,15 +165,21 @@ hr
 
 #bill-header
 {
-    margin:50px 20%;
-    
+    margin:50px 10%;
+
     font-weight: bold;
-    font-size: 3em;
+    font-size: 2.6em;
+
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 30px;
+    white-space: nowrap;
 }
 
 #bill-header-label
 {
-    padding-right: 10%;
+    padding-right: 0;
 }
 
 #bill-object
@@ -226,7 +232,7 @@ hr
 #tasks span
 {
     display:inline-block;
-    padding:5px;
+    padding:2px 5px;
     text-align: center;
 }
 
@@ -258,7 +264,7 @@ hr
 
 #tasks-lines
 {
-    margin:10px 0px;
+    margin:2px 0px;
     font-size: 0.75em;
 }
 
@@ -285,6 +291,26 @@ hr
 #bill-total .assocValue
 {
     width:40%;
+    display: inline-flex;
+    align-items: baseline;
+}
+
+#bill-total .amount
+{
+    flex:1;
+    text-align: right;
+}
+
+#bill-total .currency
+{
+    margin-left:4px;
+    margin-right:4px;
+}
+
+#bill-total .unit
+{
+    min-width:2.6em;
+    text-align: left;
 }
 
 #taux
@@ -311,9 +337,14 @@ hr
     font-size: 0.8em;
 }
 
-#dispense
+.mentions
 {
     margin:20px 10%;
+}
+
+.mention
+{
+    margin:0;
     font-weight: bold;
     text-align: center;
     font-size:0.8em;
@@ -365,13 +396,13 @@ hr
 {
     background-color: var(--bgInvert);
     color:var(--fcInvert);
-    font-size:0.9em;
-    padding:25px 10%;
+    font-size:0.8em;
+    padding:10px 10%;
 }
 
 #email
 {
-    font-size:1.1em;
+    font-size:1em;
 }
 
 #contact .assocLabel

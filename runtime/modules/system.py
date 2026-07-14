@@ -1,4 +1,5 @@
 import os
+import calendar
 from datetime import datetime
 
 """
@@ -17,6 +18,26 @@ def strToYmd(str):
         dt = datetime.strptime(str,"%Y-%m")
 
     return dt
+
+def parseFlexibleDate(s, use_first_day=False):
+    """Parse a date string accepting YYYY-MM-DD, YYYY-MM or YYYY.
+    For YYYY-MM/YYYY, defaults to the last day of the period (Dec 31 for a bare year);
+    pass use_first_day=True to get the first day instead (Jan 1 / 1st of month)."""
+    FORMATS = ["%Y-%m-%d", "%Y-%m", "%Y"]
+    for fmt in FORMATS:
+        try:
+            dt = datetime.strptime(s, fmt)
+            if fmt == "%Y-%m":
+                if use_first_day:
+                    return datetime(dt.year, dt.month, 1)
+                last_day = calendar.monthrange(dt.year, dt.month)[1]
+                return datetime(dt.year, dt.month, last_day)
+            if fmt == "%Y":
+                return datetime(dt.year, 1, 1) if use_first_day else datetime(dt.year, 12, 31)
+            return dt
+        except ValueError:
+            continue
+    raise ValueError(f"Date '{s}' does not match expected formats")
 
 def filterLines(lines):
 

@@ -124,7 +124,7 @@ class AssocEntry:
             print("error : data is empty")
             return
         
-        buff = strData.split(":")
+        buff = strData.split(":", 1)
         
         if len(buff) < 2:
             print("error:no value ? "+strData)

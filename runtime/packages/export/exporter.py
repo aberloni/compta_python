@@ -33,7 +33,7 @@ def exportBill(project, bill):
     #print("     bill.path @ "+exportPath)
 
     # export file name
-    billFileName = _billFuid+"_"+project.client.uid+"_"+project.uid
+    billFileName = _billFuid+"_"+bill.getClient().uid+"_"+project.uid
 
     if configs.is_debugging():
         # GENERATE DUMP FILE

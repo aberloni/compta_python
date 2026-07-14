@@ -13,7 +13,7 @@ DB_EXTENSIONS = {
 }
 
 # all years to export
-billingRange = ["2026-01","2026-07"]
+billingRange = ["2026-05","2026-07"]
 
 # create pdf
 creatPdf = True

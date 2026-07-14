@@ -58,11 +58,11 @@
     </div>
 
     <div id="bill-total">
-      <div id="taux"><span id="taux-label" class="assocLabel">taux</span><span id="taux-value" class="assocValue">{{taux}}</span></div>
-      <div id="totalHT"><span id="totalHT-label" class="assocLabel">Total HT</span><span id="totalHT-value" class="assocValue">{{total_ht}} € HT</span></div>
-      <div id="tva"><span id="tva-label" class="assocLabel">TVA ({{tva_perc}})</span><span id="tva-value" class="assocValue">{{tva_amount}} €</span></div>
+      <div id="taux"><span id="taux-label" class="assocLabel">taux</span><span id="taux-value" class="assocValue"><span class="amount">{{taux}}</span><span class="currency">€</span><span class="unit">HT</span></span></div>
+      <div id="totalHT"><span id="totalHT-label" class="assocLabel">Total HT</span><span id="totalHT-value" class="assocValue"><span class="amount">{{total_ht}}</span><span class="currency">€</span><span class="unit">HT</span></span></div>
+      {{tva_block}}
       {{frais_block}}
-      <div id="total"><span id="total-label" class="assocLabel">Total à régler</span><span id="total-value" class="assocValue">{{total_ttc}} € TTC</span></div>
+      <div id="total"><span id="total-label" class="assocLabel">Total à régler</span><span id="total-value" class="assocValue"><span class="amount">{{total_ttc}}</span><span class="currency">€</span><span class="unit">TTC</span></span></div>
     </div>
 
     <div id="done">Date de facturation : {{bill_date}}</div>
@@ -70,7 +70,11 @@
 
   </div>
 
-  <div id="dispense">{{dispense}}</div>
+  <div class="mentions">
+    <div id="dispense" class="mention">{{dispense}}</div>
+    <div id="operation" class="mention">{{operation}}</div>
+    {{mention_block}}
+  </div>
 
   <!-- RIB -->
   <hr/>
