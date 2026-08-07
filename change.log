@@ -1,0 +1,14 @@
+# Change log
+
+Simple list of changes, grouped by day.
+
+## 2026-08-07
+
+- Fixed view scripts (billing, tva, trimester, tasks calendar) closing immediately on error instead of showing what went wrong.
+- Fixed a crash in terminal output caused by special characters on Windows.
+- Bills now get backed up automatically before every billing run.
+- Missing PDF library now shows a clear message instead of crashing.
+- Installed missing Python libraries needed for billing and PDF export.
+- Fixed a missing setting that was blocking bill generation.
+- Moved editable settings (billing range, PDF on/off, etc.) into a separate, easy-to-edit settings file.
+- Added Belgium to the list of supported client countries.

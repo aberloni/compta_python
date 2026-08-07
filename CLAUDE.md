@@ -231,3 +231,4 @@ openBillingFolder = True                 # os.startfile() after export (Windows)
 - `Database.instance` is set on construction — used as a global singleton.
 - `Bill.verbose`, `Project.verbose`, `Task.verbose` flags for debug prints.
 - `configs.is_debugging()` detects debugger attach (writes `.dump` files).
+- `change.log` at repo root tracks every change (code or data), grouped by day (`## YYYY-MM-DD` heading, one bullet per change). Append to it whenever a change is made — don't wait to be asked. Write each bullet as a simple, plain-language sentence describing the task achieved (no file names, function names, or technical detail) — readable by a non-technical person.

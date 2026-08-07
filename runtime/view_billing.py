@@ -9,6 +9,8 @@ import locale
 import sys
 import traceback
 
+import configs
+
 def _excepthook(etype, value, tb):
     traceback.print_exception(etype, value, tb)
     if configs.pause_on_exit: input("\nEntrée pour fermer...")

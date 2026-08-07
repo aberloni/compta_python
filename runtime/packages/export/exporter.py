@@ -1,10 +1,21 @@
 import os
+import sys
 import configs
 
 from packages.export.htmlFormater import *
 from modules.path import Path
 
-from weasyprint import HTML
+try:
+    from weasyprint import HTML
+except (ImportError, OSError) as e:
+    print("\n[ERROR] impossible de charger WeasyPrint (génération PDF).")
+    print(f"  {e}")
+    print("\n  pip install weasyprint")
+    print("  + dépendances système (Pango/GTK) : voir readme.md et")
+    print("  https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation")
+    if configs.pause_on_exit:
+        input("\nEntrée pour fermer...")
+    sys.exit(1)
 
 def exportBills(project, exportDateRange):
     """Export all bills of a project within the given date range. Returns the bill list."""

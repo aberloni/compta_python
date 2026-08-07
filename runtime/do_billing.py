@@ -12,6 +12,10 @@ import os
 from datetime import datetime
 import configs
 
+if configs.backupBeforeBilling:
+    import do_zip_backup
+    do_zip_backup.make_backup()
+
 from packages.database.database import Database
 
 print("\n\nbilling.init.db")

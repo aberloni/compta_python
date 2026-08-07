@@ -24,6 +24,10 @@ app to generate billings
 # deps
 
 	pip install weasyprint
+		> https://www.msys2.org/
+		pacman -S mingw-w64-x86_64-pango
+
+
 	pip install pdfplumber
 	pip install python-dateutil
 
