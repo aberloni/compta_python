@@ -12,3 +12,25 @@ Simple list of changes, grouped by day.
 - Fixed a missing setting that was blocking bill generation.
 - Moved editable settings (billing range, PDF on/off, etc.) into a separate, easy-to-edit settings file.
 - Added Belgium to the list of supported client countries.
+
+## 2026-09-13
+
+- Started building a desktop app window around the tool, so it can be used by clicking buttons instead of running scripts by hand.
+- All the report pages (billing, TVA, calendar, etc.) now share the same navigation bar and footer, so you can click between them.
+- Added a new home page that lists and links to all the other report pages.
+- The app window now actually opens: launching it refreshes the home page and shows it in its own window, no browser tab or command line needed.
+- Added an "auto refresh" switch in the top bar: on, each page redoes its calculations before showing; off, it shows what was last computed and only recalculates if nothing was computed yet.
+- If a page fails to update, it now shows a red warning banner instead of failing silently.
+- Every table column header on every report page can now be clicked to sort the rows by that column, ascending or descending.
+- Each table now opens already sorted by its most sensible column, and remembers the last column you sorted by so it opens that way again next time.
+- Clicking a tab in the app now prints which page is being regenerated in the terminal, and confirms it succeeded (or shows the error) once done.
+- Started work on pulling work days straight from Google Calendar: a new tool reads the calendar and shows a preview table of what it found for a given month (day, project, half/full day), without changing anything yet — writing that data into the calendar files comes next.
+- Added a zip button to the top bar to back up the database on demand, without having to run a script by hand.
+- The TVA page's monthly table now always shows every month up to the current one, even months with nothing to declare, instead of stopping at the last month that had a payment.
+- Fixed the "par trimestre" table headers on the Trimestres page: they now line up with the numbers below them instead of sitting to the left.
+- Added a "payée le" column to the invoices table on the Facturation page, showing the date each invoice was actually paid, based on the received transfers.
+- The Calendrier page now shows a preview of the current month's Google Calendar events under the day grid, with a guess at which project each one matches, so you can review what would be imported before anything is actually added to the tracked days.
+- The invoices table on the Facturation page is now split into two: one for unpaid invoices, one for paid ones, instead of one mixed list.
+- The Google Calendar preview on the Calendrier page no longer loads automatically when you open the tab (it could be slow) — it now only fetches when you click the new "Charger l'aperçu" button.
+- Calendar events whose title starts with "TVA" are now skipped entirely in the calendar import preview, since those are personal declaration reminders, not work days.
+- Calendar events whose title starts with a parenthesis, like "(rdv dentiste)", are now also skipped in the calendar import preview.

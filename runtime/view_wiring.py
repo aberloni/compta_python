@@ -20,6 +20,7 @@ from collections import defaultdict
 import configs
 from packages.database.database import Database
 from packages.database.wiring import Wiring
+from modules.layout import render_shell
 
 # ─── load ─────────────────────────────────────────────────────────────────────
 
@@ -169,75 +170,69 @@ summary = f"""<div class="cards">
 
 unknown_section = f"""
 <h2>Virements hors clients connus</h2>
-<table>
+<table data-default-sort="0:asc">
   <thead>{th("Date", "UID reçu", "Montant")}</thead>
   <tbody>{unknown_rows}</tbody>
 </table>""" if unknown_wires else ""
 
 generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-html = f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<title>Wiring view</title>
-<style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: system-ui, sans-serif; font-size: 14px; background: #f5f5f5; color: #222; padding: 32px; }}
-  h1 {{ font-size: 20px; font-weight: 700; margin-bottom: 4px; }}
-  .meta {{ color: #888; font-size: 12px; margin-bottom: 24px; }}
-  h2 {{ font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
-        color: #999; margin: 32px 0 10px; }}
+page_style = """
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; font-size: 14px; background: #f5f5f5; color: #222; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: #888; font-size: 12px; margin-bottom: 24px; }
+  h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+        color: #999; margin: 32px 0 10px; }
 
-  .cards {{ display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }}
-  .card {{ background: #fff; border-radius: 8px; padding: 14px 20px; min-width: 140px;
-            box-shadow: 0 1px 3px rgba(0,0,0,.07); }}
-  .card-label {{ font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: .05em; }}
-  .card-value {{ font-size: 20px; font-weight: 700; margin-top: 4px; }}
-  .card-due .card-value {{ color: #c62828; }}
-  .card-ok  .card-value {{ color: #2e7d32; }}
+  .cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+  .card { background: #fff; border-radius: 8px; padding: 14px 20px; min-width: 140px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+  .card-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: .05em; }
+  .card-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .card-due .card-value { color: #c62828; }
+  .card-ok  .card-value { color: #2e7d32; }
 
-  table {{ width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px;
-            overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.07); margin-bottom: 4px; }}
-  th {{ background: #f0f0f0; text-align: left; padding: 7px 12px;
-        font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #888; }}
-  td {{ padding: 7px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; }}
-  tr:hover td {{ background: #fafafa; }}
-  .num {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }}
-  .mono {{ font-family: monospace; font-size: 12px; color: #777; }}
-  .empty {{ color: #ccc; }}
-  .ref {{ font-family: monospace; font-size: 11px; color: #888; }}
-  .due {{ color: #c62828; font-weight: 600; }}
-  .total-row td {{ font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }}
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px;
+            overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.07); margin-bottom: 4px; }
+  th { background: #f0f0f0; text-align: left; padding: 7px 12px;
+        font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #888; }
+  td { padding: 7px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; }
+  tr:hover td { background: #fafafa; }
+  .num { text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mono { font-family: monospace; font-size: 12px; color: #777; }
+  .empty { color: #ccc; }
+  .ref { font-family: monospace; font-size: 11px; color: #888; }
+  .due { color: #c62828; font-weight: 600; }
+  .total-row td { font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }
 
-  tr.paid td   {{ color: #bbb; }}
-  tr.paid .mono {{ color: #ccc; }}
-  tr.partial td {{ background: #fff8e1; }}
-</style>
-</head>
-<body>
+  tr.paid td   { color: #bbb; }
+  tr.paid .mono { color: #ccc; }
+  tr.partial td { background: #fff8e1; }
+"""
 
+body_content = f"""
 <h1>Virements</h1>
 <div class="meta">Généré le {generated_at}</div>
 
 {summary}
 
 <h2>Virements reçus</h2>
-<table>
+<table data-default-sort="0:asc">
   <thead>{th("Date", "Client", "Montant TTC", "Facture")}</thead>
   <tbody>{wire_rows}</tbody>
 </table>
 
 <h2>Factures</h2>
-<table>
+<table data-default-sort="1:asc">
   <thead>{th("#", "Date émise", "Client", "Projet", "HT", "TTC", "Reçu", "Restant", "Statut")}</thead>
   <tbody>{bill_rows}</tbody>
 </table>
 
 {unknown_section}
+"""
 
-</body>
-</html>"""
+html = render_shell("Wiring view", "wiring.html", body_content, page_style)
 
 # ─── write ────────────────────────────────────────────────────────────────────
 
@@ -257,7 +252,7 @@ if unknown_wires:
     print(f"hors clients : {len(unknown_wires)} virement(s)")
 print(f"view @ {out_path}")
 
-if hasattr(os, "startfile"):
+if hasattr(os, "startfile") and not configs.webview_mode:
     os.startfile(os.path.normpath(out_path))
 
-if configs.pause_on_exit: input("\nEntrée pour fermer...")
+if configs.pause_on_exit and not configs.webview_mode: input("\nEntrée pour fermer...")

@@ -12,7 +12,7 @@ import configs
 
 def _excepthook(etype, value, tb):
     traceback.print_exception(etype, value, tb)
-    if configs.pause_on_exit: input("\nEntrée pour fermer...")
+    if configs.pause_on_exit and not configs.webview_mode: input("\nEntrée pour fermer...")
 sys.excepthook = _excepthook
 
 try:
@@ -27,6 +27,7 @@ from collections import defaultdict
 
 import configs
 from packages.database.database import Database
+from modules.layout import render_shell
 
 # ─── load ─────────────────────────────────────────────────────────────────────
 
@@ -95,6 +96,9 @@ print(f"dates chargées : {len(by_date)}  —  mois : {months_with_data[:3]}..."
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
 DAY_HEADERS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+
+def th(*cols):
+    return "<tr>" + "".join(f"<th>{c}</th>" for c in cols) + "</tr>"
 
 def fmt_days(v):
     if v == 0:   return "0"
@@ -242,79 +246,143 @@ for m in range(1, 13):
 
 years_data_js = "{" + ",".join(f'"{y}":[{",".join(str(m) for m in sorted(ms))}]' for y, ms in years_available.items()) + "}"
 
+# ─── google calendar import preview ────────────────────────────────────────────
+# Fetched on demand only (button click below) — never on page open, since the
+# network round-trip can be slow.
+
+CALENDAR_PREVIEW_SCRIPT = """
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function loadCalendarPreview() {
+  const btn = document.getElementById('cal-preview-btn');
+  const summary = document.getElementById('cal-preview-summary');
+  const tbody = document.getElementById('cal-preview-tbody');
+  if (!(window.pywebview && window.pywebview.api)) {
+    summary.textContent = "Indisponible en dehors de l'application.";
+    return false;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Chargement…';
+  summary.textContent = '';
+  tbody.innerHTML = '';
+  window.pywebview.api.fetch_calendar_preview('__YM__').then(function (result) {
+    btn.disabled = false;
+    btn.textContent = "Recharger l'aperçu (__YM__)";
+    if (!result || !result.ok) {
+      summary.textContent = 'Erreur : ' + (result && result.error || '?');
+      return;
+    }
+    if (result.rows.length === 0) {
+      summary.textContent = 'Aucun événement trouvé sur ce mois.';
+      return;
+    }
+    const STATUS_CLASS = { UNMATCHED: 'cal-unmatched', 'fuzzy?': 'cal-fuzzy', ignored: 'cal-ignored' };
+    let unmatched = 0;
+    tbody.innerHTML = result.rows.map(function (r) {
+      if (r.status === 'UNMATCHED') unmatched++;
+      const cls = STATUS_CLASS[r.status] || '';
+      return '<tr class="' + cls + '">' +
+        '<td>' + r.date + '</td>' +
+        '<td>' + r.weekday + '</td>' +
+        '<td>' + escHtml(r.title) + '</td>' +
+        '<td>' + (r.uid || '?') + '</td>' +
+        '<td class="num">' + r.fraction + '</td>' +
+        '<td>' + r.status + '</td>' +
+        '</tr>';
+    }).join('');
+    summary.textContent = result.rows.length + ' événement(s) — ' + unmatched + ' non résolu(s)';
+  });
+  return false;
+}
+""".replace("__YM__", current_ym)
+
 # ─── assemble ─────────────────────────────────────────────────────────────────
 
 generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-html = f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<title>Tasks calendrier</title>
-<style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: system-ui, sans-serif; font-size: 13px; background: #f5f5f5; color: #222; padding: 24px 32px; }}
-  h1 {{ font-size: 20px; font-weight: 700; margin-bottom: 4px; }}
-  .meta {{ color: #888; font-size: 12px; margin-bottom: 20px; }}
+page_style = """
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; font-size: 13px; background: #f5f5f5; color: #222; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: #888; font-size: 12px; margin-bottom: 20px; }
 
   /* tabs */
-  .tabs-nav {{ display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }}
-  .tab-btn {{ padding: 6px 14px; border: 1px solid #ddd; border-radius: 20px;
+  .tabs-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+  .tab-btn { padding: 6px 14px; border: 1px solid #ddd; border-radius: 20px;
               background: #fff; cursor: pointer; font-size: 12px; font-weight: 500;
-              color: #555; transition: background .15s; }}
-  .tab-btn:hover {{ background: #f0f0f0; }}
-  .tab-btn.active {{ background: #222; color: #fff; border-color: #222; }}
-  .tab-btn.disabled {{ opacity: .3; pointer-events: none; }}
-  .tab-panel {{ display: none; }}
-  .tab-panel.active {{ display: block; }}
+              color: #555; transition: background .15s; }
+  .tab-btn:hover { background: #f0f0f0; }
+  .tab-btn.active { background: #222; color: #fff; border-color: #222; }
+  .tab-btn.disabled { opacity: .3; pointer-events: none; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
 
   /* legend */
-  .legend {{ display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px; }}
-  .legend-item {{ display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }}
-  .legend-dot {{ width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }}
-  .legend-days {{ margin-left: 6px; font-weight: 600; color: #333; }}
-  .total-legend {{ font-weight: 700; color: #222; }}
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .legend-days { margin-left: 6px; font-weight: 600; color: #333; }
+  .total-legend { font-weight: 700; color: #222; }
 
   /* calendar */
-  .cal-grid {{ background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }}
-  .day-headers {{ display: grid; grid-template-columns: repeat(7, 1fr);
-                  background: #f7f7f7; border-bottom: 1px solid #eee; }}
-  .day-header {{ padding: 8px; text-align: center; font-size: 11px; font-weight: 600;
-                 text-transform: uppercase; letter-spacing: .05em; color: #aaa; }}
-  .days {{ display: grid; grid-template-columns: repeat(7, 1fr); }}
-  .day-cell {{ height: 90px; padding: 6px; border-right: 1px solid #f0f0f0;
-               border-bottom: 1px solid #f0f0f0; display: flex; flex-direction: column; }}
-  .day-cell.empty {{ background: #fafafa; }}
-  .day-cell.weekend {{ background: #fafafa; }}
-  .day-cell.today {{ background: #fffbe6; }}
-  .day-cell:nth-child(7n) {{ border-right: none; }}
-  .day-num {{ font-size: 11px; font-weight: 700; color: #bbb; margin-bottom: 4px; flex-shrink: 0; }}
-  .today .day-num {{ color: #e65100; }}
-  .weekend .day-num {{ color: #ddd; }}
+  .cal-grid { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+  .day-headers { display: grid; grid-template-columns: repeat(7, 1fr);
+                  background: #f7f7f7; border-bottom: 1px solid #eee; }
+  .day-header { padding: 8px; text-align: center; font-size: 11px; font-weight: 600;
+                 text-transform: uppercase; letter-spacing: .05em; color: #aaa; }
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .day-cell { height: 90px; padding: 6px; border-right: 1px solid #f0f0f0;
+               border-bottom: 1px solid #f0f0f0; display: flex; flex-direction: column; }
+  .day-cell.empty { background: #fafafa; }
+  .day-cell.weekend { background: #fafafa; }
+  .day-cell.today { background: #fffbe6; }
+  .day-cell:nth-child(7n) { border-right: none; }
+  .day-num { font-size: 11px; font-weight: 700; color: #bbb; margin-bottom: 4px; flex-shrink: 0; }
+  .today .day-num { color: #e65100; }
+  .weekend .day-num { color: #ddd; }
 
   /* stacked bar */
-  .bar-wrap {{ flex: 1; border-radius: 4px; overflow: hidden; display: flex;
-               flex-direction: column; background: #f0f0f0; min-height: 0; }}
-  .bar-seg {{ width: 100%; transition: opacity .15s; position: relative;
-              display: flex; align-items: center; overflow: hidden; }}
-  .bar-seg:hover {{ opacity: .75; cursor: default; }}
-  .zero-seg {{ background: #fdecea !important; }}
-  .bar-label {{ font-size: 9px; font-weight: 600; color: rgba(0,0,0,.6);
+  .bar-wrap { flex: 1; border-radius: 4px; overflow: hidden; display: flex;
+               flex-direction: column; background: #f0f0f0; min-height: 0; }
+  .bar-seg { width: 100%; transition: opacity .15s; position: relative;
+              display: flex; align-items: center; overflow: hidden; }
+  .bar-seg:hover { opacity: .75; cursor: default; }
+  .zero-seg { background: #fdecea !important; }
+  .bar-label { font-size: 9px; font-weight: 600; color: rgba(0,0,0,.6);
                 padding: 0 4px; white-space: nowrap; overflow: hidden;
-                text-overflow: ellipsis; pointer-events: none; }}
+                text-overflow: ellipsis; pointer-events: none; }
 
-  .day-total {{ font-size: 9px; font-weight: 700; color: #bbb; text-align: right;
-                margin-top: 3px; flex-shrink: 0; }}
+  .day-total { font-size: 9px; font-weight: 700; color: #bbb; text-align: right;
+                margin-top: 3px; flex-shrink: 0; }
 
   /* state legend */
-  .state-legend {{ display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }}
-  .state-item {{ display: flex; align-items: center; gap: 6px; font-size: 11px; color: #888; }}
-  .state-swatch {{ display: inline-block; width: 14px; height: 14px; border-radius: 3px;
-                   border: 1px solid #e0e0e0; flex-shrink: 0; }}
-</style>
-</head>
-<body>
+  .state-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  .state-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #888; }
+  .state-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px;
+                   border: 1px solid #e0e0e0; flex-shrink: 0; }
 
+  /* google calendar import preview */
+  h2 { font-size: 15px; font-weight: 700; margin: 32px 0 10px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px;
+            overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.07); margin-bottom: 4px; }
+  th { background: #f0f0f0; text-align: left; padding: 7px 12px;
+        font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #888; }
+  td { padding: 7px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; }
+  tr:hover td { background: #fafafa; }
+  .num { text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.cal-unmatched td { background: #fdecea; }
+  tr.cal-fuzzy td { background: #fff8e1; }
+  tr.cal-ignored td { color: #bbb; }
+  #cal-preview-btn { padding: 7px 16px; border: none; border-radius: 20px;
+                      background: #222; color: #fff; cursor: pointer; font-size: 12px;
+                      font-weight: 600; }
+  #cal-preview-btn:hover { background: #444; }
+  #cal-preview-btn:disabled { opacity: .5; cursor: default; }
+  #cal-preview-summary { margin-left: 12px; color: #888; font-size: 12px; }
+"""
+
+body_content = f"""
 <h1>Tasks — calendrier</h1>
 <div class="meta">Généré le {generated_at}</div>
 
@@ -322,6 +390,18 @@ html = f"""<!DOCTYPE html>
 <div class="tabs-nav">{years_nav}</div>
 
 {tabs_content}
+
+<h2>Import Google Calendar — aperçu</h2>
+<div class="meta">
+  <button id="cal-preview-btn" onclick="return loadCalendarPreview()">Charger l'aperçu ({current_ym})</button>
+  <span id="cal-preview-summary"></span>
+</div>
+<table id="cal-preview-table" data-default-sort="0:asc">
+  <thead>{th("Date", "Jour", "Titre calendrier", "Projet", "Fraction", "Statut")}</thead>
+  <tbody id="cal-preview-tbody"></tbody>
+</table>
+
+<script>{CALENDAR_PREVIEW_SCRIPT}</script>
 
 <script>
 const YEARS_DATA = {years_data_js};
@@ -369,8 +449,9 @@ function selectMonth(m) {{
 
 render();
 </script>
-</body>
-</html>"""
+"""
+
+html = render_shell("Tasks calendrier", "tasks_calendar.html", body_content, page_style)
 
 # ─── write ────────────────────────────────────────────────────────────────────
 
@@ -385,7 +466,7 @@ print(f"\n── tasks_calendar ──")
 print(f"mois : {len(months_with_data)}")
 print(f"view @ {out_path}")
 
-if hasattr(os, "startfile"):
+if hasattr(os, "startfile") and not configs.webview_mode:
     os.startfile(os.path.normpath(out_path))
 
-if configs.pause_on_exit: input("\nEntrée pour fermer...")
+if configs.pause_on_exit and not configs.webview_mode: input("\nEntrée pour fermer...")

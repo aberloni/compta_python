@@ -1,0 +1,6 @@
+weasyprint
+python-dateutil
+pdfplumber
+pywebview
+requests
+icalendar

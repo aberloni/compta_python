@@ -21,7 +21,7 @@ import configs
 
 def _excepthook(etype, value, tb):
     traceback.print_exception(etype, value, tb)
-    if configs.pause_on_exit: input("\nEntrée pour fermer...")
+    if configs.pause_on_exit and not configs.webview_mode: input("\nEntrée pour fermer...")
 sys.excepthook = _excepthook
 
 try:
@@ -37,6 +37,7 @@ import configs
 from packages.database.database import Database
 from packages.database.wiring import Wiring
 from packages.database.impots import Impots
+from modules.layout import render_shell
 
 # ─── load ─────────────────────────────────────────────────────────────────────
 
@@ -197,62 +198,56 @@ summary = f"""<div class="cards">
 
 generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-html = f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<title>Trimestre view</title>
-<style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: system-ui, sans-serif; font-size: 14px; background: #f5f5f5; color: #222; padding: 32px; }}
-  h1 {{ font-size: 20px; font-weight: 700; margin-bottom: 4px; }}
-  .meta {{ color: #888; font-size: 12px; margin-bottom: 24px; }}
-  h2 {{ font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
-        color: #999; margin: 32px 0 10px; }}
+page_style = """
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; font-size: 14px; background: #f5f5f5; color: #222; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: #888; font-size: 12px; margin-bottom: 24px; }
+  h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+        color: #999; margin: 32px 0 10px; }
 
-  .cards {{ display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }}
-  .card {{ background: #fff; border-radius: 8px; padding: 14px 20px; min-width: 140px;
-            box-shadow: 0 1px 3px rgba(0,0,0,.07); }}
-  .card-label {{ font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: .05em; }}
-  .card-value {{ font-size: 20px; font-weight: 700; margin-top: 4px; }}
-  .card-due .card-value {{ color: #c62828; }}
+  .cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+  .card { background: #fff; border-radius: 8px; padding: 14px 20px; min-width: 140px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+  .card-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: .05em; }
+  .card-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+  .card-due .card-value { color: #c62828; }
 
-  table {{ width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px;
-            overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.07); margin-bottom: 4px; }}
-  th {{ background: #f0f0f0; text-align: left; padding: 7px 12px;
-        font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #888; }}
-  td {{ padding: 7px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; }}
-  tr:hover td {{ background: #fafafa; }}
-  .num {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }}
-  .mono {{ font-family: monospace; font-size: 12px; color: #777; }}
-  .charges {{ color: #c62828; font-weight: 600; }}
-  .empty-trim td {{ color: #ccc; }}
-  .empty-trim .charges {{ color: #ddd; }}
-  .total-row td {{ font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }}
-  .empty {{ color: #bbb; font-style: italic; }}
-</style>
-</head>
-<body>
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px;
+            overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.07); margin-bottom: 4px; }
+  th { background: #f0f0f0; text-align: left; padding: 7px 12px;
+        font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #888; }
+  td { padding: 7px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; }
+  tr:hover td { background: #fafafa; }
+  .num { text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mono { font-family: monospace; font-size: 12px; color: #777; }
+  .charges { color: #c62828; font-weight: 600; }
+  .empty-trim td { color: #ccc; }
+  .empty-trim .charges { color: #ddd; }
+  .total-row td { font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }
+  .empty { color: #bbb; font-style: italic; }
+"""
 
+body_content = f"""
 <h1>Charges sociales à payer — par trimestre</h1>
 <div class="meta">Généré le {generated_at} · cotisations + CFP + versement libératoire, basé sur les encaissements (paiements reçus)</div>
 
 {summary}
 
 <h2>Par trimestre</h2>
-<table>
-  <thead>{th("Trimestre", "HT", "Cotisations", "CFP", "Libératoire", "Total à payer")}</thead>
+<table data-default-sort="0:asc">
+  <thead><tr><th>Trimestre</th><th class="num">HT</th><th class="num">Cotisations</th><th class="num">CFP</th><th class="num">Libératoire</th><th class="num">Total à payer</th></tr></thead>
   <tbody>{trim_rows or '<tr><td colspan="6" class="empty">Aucun encaissement</td></tr>'}</tbody>
 </table>
 
 <h2>Détail des encaissements</h2>
-<table>
+<table data-default-sort="0:asc">
   <thead>{th("Date virement", "Trimestre", "Facture", "Client", "Projet", "HT", "Cotisations", "CFP", "Libératoire", "Total")}</thead>
   <tbody>{detail_rows or '<tr><td colspan="10" class="empty">Aucun encaissement</td></tr>'}</tbody>
 </table>
+"""
 
-</body>
-</html>"""
+html = render_shell("Trimestre view", "trimester.html", body_content, page_style)
 
 # ─── write ────────────────────────────────────────────────────────────────────
 
@@ -270,7 +265,7 @@ for t in sorted(by_trim):
 print(f"\nTotal à payer : {total_charges:.2f} €")
 print(f"view @ {out_path}")
 
-if hasattr(os, "startfile"):
+if hasattr(os, "startfile") and not configs.webview_mode:
     os.startfile(os.path.normpath(out_path))
 
-if configs.pause_on_exit: input("\nEntrée pour fermer...")
+if configs.pause_on_exit and not configs.webview_mode: input("\nEntrée pour fermer...")

@@ -65,6 +65,11 @@ openBillingFolder = _bool(_settings.get("openBillingFolder"), True)
 # keep terminal open after scripts finish (set False when running from an IDE terminal that stays open)
 pause_on_exit = _bool(_settings.get("pause_on_exit"), True)
 
+# set by app_gui.py on the scripts it launches: skip terminal-only behaviour
+# (the "press Enter to close" prompt, opening the result in the OS default
+# browser) since the webview window already displays the generated page.
+webview_mode = os.environ.get("COMPTA_WEBVIEW") == "1"
+
 # path to database/ folder at repo root
 dbPath = os.path.abspath(os.path.join(os.path.dirname(__file__), "../")) + "/"
 

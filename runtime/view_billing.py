@@ -13,7 +13,7 @@ import configs
 
 def _excepthook(etype, value, tb):
     traceback.print_exception(etype, value, tb)
-    if configs.pause_on_exit: input("\nEntrée pour fermer...")
+    if configs.pause_on_exit and not configs.webview_mode: input("\nEntrée pour fermer...")
 sys.excepthook = _excepthook
 
 try:
@@ -30,6 +30,7 @@ import configs
 from packages.database.database import Database
 from packages.database.wiring import Wiring
 from modules.path import Path
+from modules.layout import render_shell
 
 # ─── load ─────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,16 @@ for p in db.projects:
         all_bills.append((p, b))
 
 all_bills.sort(key=lambda x: x[1].uid)
+
+# paid_by_fuid[fuid] = list of wires that reference it (same matching as
+# wiring.py / tva.py: a bill counts as paid once its wires cover its TTC,
+# and its "paid date" is the date of the wire that completed that payment)
+known_uids   = {c.uid for c in db.clients}
+known_wires  = [w for w in wiring.wires if w.client_uid in known_uids]
+paid_by_fuid = defaultdict(list)
+for w in known_wires:
+    if w.bill_fuid:
+        paid_by_fuid[w.bill_fuid].append(w)
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -107,8 +118,8 @@ def render_tab(bills_slice):
       {card("Factures", str(len(bills_slice)))}
     </div>"""
 
-    # bills table
-    bills_rows = ""
+    # bills table — split paid / not (yet) fully paid
+    paid_rows = unpaid_rows = ""
     for p, b in bills_slice:
         client = b.getClient()
         fuid = b.getFullUid() or b.uid
@@ -116,7 +127,15 @@ def render_tab(bills_slice):
         taux_str = " → ".join(str(t) for t in taux_range) + " €/j"
         frais_tag = f'<span class="tag">+frais {fmt_eur(b.getTransactionsTTC())}</span>' if b.hasTransactions() else ""
         forfait_tag = '<span class="tag forfait">forfait</span>' if b.isForfait() else ""
-        bills_rows += f"""<tr>
+
+        wires = paid_by_fuid.get(fuid, [])
+        received = sum(w.amount for w in wires)
+        remaining = b.getTTC() - received
+        last_wire_date = max((w.date for w in wires), default=None)
+        is_paid = remaining <= 0.01 and last_wire_date
+        paid_html = f'<span class="paid-date">{last_wire_date:%Y-%m-%d}</span>' if is_paid else '<span class="empty">—</span>'
+
+        row = f"""<tr>
           <td class="mono">{fuid}</td>
           <td>{b.uid}</td>
           <td>{b.start:%Y-%m-%d}&nbsp;→&nbsp;{b.end:%Y-%m-%d}</td>
@@ -126,7 +145,13 @@ def render_tab(bills_slice):
           <td class="num">{taux_str}</td>
           <td class="num">{fmt_eur(b.getHT())}</td>
           <td class="num">{fmt_eur(b.getTTC())}{frais_tag}</td>
+          <td>{paid_html}</td>
         </tr>"""
+
+        if is_paid:
+            paid_rows += row
+        else:
+            unpaid_rows += row
 
     # by month
     month_rows = ""
@@ -162,8 +187,16 @@ def render_tab(bills_slice):
           <td class="num">{fmt_eur(d['ttc'])}</td>
         </tr>"""
 
-    # paiements
-    received_by_client = wiring.by_client()
+    # paiements — scoped to this tab's own bills (wires matched via bill_fuid),
+    # not the client's lifetime total, so a wire paying a bill from another
+    # year doesn't inflate "reçu" on every tab
+    received_by_client = defaultdict(float)
+    for p, b in bills_slice:
+        client = b.getClient()
+        if not client:
+            continue
+        fuid = b.getFullUid() or b.uid
+        received_by_client[client.uid] += sum(w.amount for w in paid_by_fuid.get(fuid, []))
     payment_rows = ""
     total_facture = total_recu = 0.0
     for uid, d in sorted(by_client.items(), key=lambda x: -x[1]["ttc"]):
@@ -189,7 +222,7 @@ def render_tab(bills_slice):
 
     payment_html = f"""
     <h2>Paiements reçus</h2>
-    <table>
+    <table data-default-sort="1:desc">
       <thead>{th("Client", "Facturé TTC", "Reçu TTC", "Reste à recevoir")}</thead>
       <tbody>{payment_rows}</tbody>
     </table>"""
@@ -229,14 +262,20 @@ def render_tab(bills_slice):
 
     {payment_html}
 
-    <h2>Factures</h2>
-    <table>
-      <thead>{th("ID", "Date facture", "Période", "Client", "Projet", "Jours", "Taux", "HT", "TTC")}</thead>
-      <tbody>{bills_rows or '<tr><td colspan="9" class="empty">Aucune facture</td></tr>'}</tbody>
+    <h2>Factures non payées</h2>
+    <table data-default-sort="1:asc">
+      <thead>{th("ID", "Date facture", "Période", "Client", "Projet", "Jours", "Taux", "HT", "TTC", "Payée le")}</thead>
+      <tbody>{unpaid_rows or '<tr><td colspan="10" class="empty">Aucune facture en attente</td></tr>'}</tbody>
+    </table>
+
+    <h2>Factures payées</h2>
+    <table data-default-sort="1:asc">
+      <thead>{th("ID", "Date facture", "Période", "Client", "Projet", "Jours", "Taux", "HT", "TTC", "Payée le")}</thead>
+      <tbody>{paid_rows or '<tr><td colspan="10" class="empty">Aucune facture payée</td></tr>'}</tbody>
     </table>
 
     <h2>Par mois</h2>
-    <table>
+    <table data-default-sort="0:asc">
       <thead>{th("Mois", "Jours", "HT", "TTC")}</thead>
       <tbody>{month_rows or '<tr><td colspan="4" class="empty">—</td></tr>'}</tbody>
     </table>
@@ -245,14 +284,14 @@ def render_tab(bills_slice):
       <div>
         <h2>Par client</h2>
         {pie_svg}
-        <table>
+        <table data-default-sort="3:desc">
           <thead>{th("Client", "Factures", "Jours", "HT", "TTC")}</thead>
           <tbody>{client_rows or '<tr><td colspan="5" class="empty">—</td></tr>'}</tbody>
         </table>
       </div>
       <div>
         <h2>Par projet</h2>
-        <table>
+        <table data-default-sort="4:desc">
           <thead>{th("Projet", "Client", "Factures", "Jours", "HT", "TTC")}</thead>
           <tbody>{project_rows or '<tr><td colspan="6" class="empty">—</td></tr>'}</tbody>
         </table>
@@ -336,72 +375,67 @@ unbilled_section = f"""
 
 generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
 
-html = f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<title>Billing view</title>
-<style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ font-family: system-ui, sans-serif; font-size: 14px; background: #f5f5f5; color: #222; padding: 32px; }}
-  h1 {{ font-size: 20px; font-weight: 700; margin-bottom: 4px; }}
-  .meta {{ color: #888; font-size: 12px; margin-bottom: 24px; }}
-  h2 {{ font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
-        color: #999; margin: 28px 0 10px; }}
+page_style = """
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; font-size: 14px; background: #f5f5f5; color: #222; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: #888; font-size: 12px; margin-bottom: 24px; }
+  h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+        color: #999; margin: 28px 0 10px; }
 
   /* tabs */
-  .tabs {{ display: flex; gap: 4px; margin-bottom: 24px; }}
-  .tab-btn {{ background: #e8e8e8; border: none; border-radius: 6px; padding: 7px 16px;
-              font-size: 13px; cursor: pointer; color: #555; font-family: inherit; }}
-  .tab-btn:hover {{ background: #ddd; }}
-  .tab-btn.active {{ background: #222; color: #fff; }}
-  .tab-panel {{ display: none; }}
-  .tab-panel.active {{ display: block; }}
+  .tabs { display: flex; gap: 4px; margin-bottom: 24px; }
+  .tab-btn { background: #e8e8e8; border: none; border-radius: 6px; padding: 7px 16px;
+              font-size: 13px; cursor: pointer; color: #555; font-family: inherit; }
+  .tab-btn:hover { background: #ddd; }
+  .tab-btn.active { background: #222; color: #fff; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
 
   /* cards */
-  .cards {{ display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }}
-  .card {{ background: #fff; border-radius: 8px; padding: 14px 20px; min-width: 140px;
-            box-shadow: 0 1px 3px rgba(0,0,0,.07); }}
-  .card-label {{ font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: .05em; }}
-  .card-value {{ font-size: 20px; font-weight: 700; margin-top: 4px; }}
+  .cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .card { background: #fff; border-radius: 8px; padding: 14px 20px; min-width: 140px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+  .card-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: .05em; }
+  .card-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
 
   /* tables */
-  table {{ width: 100%; border-collapse: collapse; background: #fff;
+  table { width: 100%; border-collapse: collapse; background: #fff;
             border-radius: 8px; overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,.07); margin-bottom: 4px; }}
-  th {{ background: #f0f0f0; text-align: left; padding: 7px 12px;
-        font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #888; }}
-  td {{ padding: 7px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; }}
-  tr:hover td {{ background: #fafafa; }}
-  .num {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }}
-  .mono {{ font-family: monospace; font-size: 12px; color: #777; }}
-  .empty {{ color: #bbb; font-style: italic; }}
-  .tag {{ font-size: 10px; background: #e8f0fe; color: #3367d6;
-          border-radius: 4px; padding: 2px 6px; margin-left: 4px; white-space: nowrap; }}
-  .tag.forfait {{ background: #fce8b2; color: #b06000; }}
-  .reste-ok  {{ color: #2e7d32; font-weight: 600; }}
-  .reste-due {{ color: #c62828; font-weight: 600; }}
-  .total-row td {{ font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }}
+            box-shadow: 0 1px 3px rgba(0,0,0,.07); margin-bottom: 4px; }
+  th { background: #f0f0f0; text-align: left; padding: 7px 12px;
+        font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #888; }
+  td { padding: 7px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; }
+  tr:hover td { background: #fafafa; }
+  .num { text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mono { font-family: monospace; font-size: 12px; color: #777; }
+  .empty { color: #bbb; font-style: italic; }
+  .tag { font-size: 10px; background: #e8f0fe; color: #3367d6;
+          border-radius: 4px; padding: 2px 6px; margin-left: 4px; white-space: nowrap; }
+  .tag.forfait { background: #fce8b2; color: #b06000; }
+  .reste-ok  { color: #2e7d32; font-weight: 600; }
+  .reste-due { color: #c62828; font-weight: 600; }
+  .paid-date { color: #2e7d32; font-weight: 600; }
+  .total-row td { font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }
 
   /* two-col layout for client + project side by side */
-  .two-col {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }}
-  @media (max-width: 900px) {{ .two-col {{ grid-template-columns: 1fr; }} }}
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
 
   /* pie chart */
-  .pie-wrap {{ display: flex; align-items: center; gap: 20px; margin-bottom: 16px; }}
-  .pie-legend {{ display: flex; flex-direction: column; gap: 6px; font-size: 13px; }}
-  .pie-legend-item {{ display: flex; align-items: center; gap: 8px; }}
-  .pie-dot {{ display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }}
+  .pie-wrap { display: flex; align-items: center; gap: 20px; margin-bottom: 16px; }
+  .pie-legend { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .pie-legend-item { display: flex; align-items: center; gap: 8px; }
+  .pie-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 
   /* unbilled section */
-  .unbilled-title {{ color: #b06000; margin-top: 40px; border-top: 2px solid #fce8b2; padding-top: 20px; }}
-  .unbilled-cards .card:last-child .card-value {{ color: #b06000; }}
-  .est {{ color: #b06000; font-weight: 600; }}
-  .all-billed {{ color: #2e7d32; font-size: 13px; margin-top: 8px; }}
-</style>
-</head>
-<body>
+  .unbilled-title { color: #b06000; margin-top: 40px; border-top: 2px solid #fce8b2; padding-top: 20px; }
+  .unbilled-cards .card:last-child .card-value { color: #b06000; }
+  .est { color: #b06000; font-weight: 600; }
+  .all-billed { color: #2e7d32; font-size: 13px; margin-top: 8px; }
+"""
 
+body_content = f"""
 <h1>Billing view</h1>
 <div class="meta">Généré le {generated_at} · {len(all_bills)} factures au total</div>
 
@@ -419,8 +453,9 @@ function showTab(id) {{
   document.getElementById('btn-' + id).classList.add('active');
 }}
 </script>
-</body>
-</html>"""
+"""
+
+html = render_shell("Billing view", "billing.html", body_content, page_style)
 
 # ─── write ────────────────────────────────────────────────────────────────────
 
@@ -440,7 +475,7 @@ for p in db.projects:
     print(f"  {p.uid:<20} tâches:{len(p.tasks):>3}  facturés:{billed:>5.1f}j  non-facturés:{unbilled:>5.1f}j")
 print(f"\nview @ {out_path}")
 
-if hasattr(os, "startfile"):
+if hasattr(os, "startfile") and not configs.webview_mode:
     os.startfile(os.path.normpath(out_path))
 
-if configs.pause_on_exit: input("\nEntrée pour fermer...")
+if configs.pause_on_exit and not configs.webview_mode: input("\nEntrée pour fermer...")
