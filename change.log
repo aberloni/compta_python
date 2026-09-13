@@ -34,3 +34,4 @@ Simple list of changes, grouped by day.
 - The Google Calendar preview on the Calendrier page no longer loads automatically when you open the tab (it could be slow) — it now only fetches when you click the new "Charger l'aperçu" button.
 - Calendar events whose title starts with "TVA" are now skipped entirely in the calendar import preview, since those are personal declaration reminders, not work days.
 - Calendar events whose title starts with a parenthesis, like "(rdv dentiste)", are now also skipped in the calendar import preview.
+- Ignored calendar events (TVA reminders, parenthesis notes) now still show up in the calendar import preview, just grayed out, instead of disappearing from the list.
