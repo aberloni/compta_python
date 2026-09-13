@@ -36,7 +36,6 @@ db = Database.init_billing()
 # ─── assign a stable color per project ────────────────────────────────────────
 
 OFF_COLOR   = "#b3e5fc"   # light blue — reserved for off/congé days
-CHOME_COLOR = "#d0d0d0"   # grey — reserved for chômé (no info) days
 
 PALETTE = [
     "#ffadad", "#ffd6a5", "#fdffb6", "#caffbf", "#9bf6ff",
@@ -46,9 +45,10 @@ PALETTE = [
 ]
 
 # stable assignment: sort projects by uid for determinism, assign palette index
+# unless the project defines its own color:#hex
 project_colors = {}
 for i, p in enumerate(sorted(db.projects, key=lambda x: x.uid)):
-    project_colors[p.uid] = PALETTE[i % len(PALETTE)]
+    project_colors[p.uid] = p.color or PALETTE[i % len(PALETTE)]
 
 project_names = {p.uid: p.name for p in db.projects}
 
@@ -74,14 +74,6 @@ for t in db.tasks:
             "name":  "Congé",
             "days":  t.getTimeSpent(),
             "color": OFF_COLOR,
-        })
-    elif t.is_chome:
-        d = t.date.date() if hasattr(t.date, 'date') else t.date
-        by_date[d].append({
-            "uid":   "chome",
-            "name":  "Chômé",
-            "days":  t.getTimeSpent(),
-            "color": CHOME_COLOR,
         })
 
 # sort entries within each day by days desc
@@ -124,7 +116,7 @@ def render_month(ym):
 
         day_total = sum(e["days"] for e in entries)
         for e in entries:
-            if e["uid"] not in ("off", "chome"):
+            if e["uid"] != "off":
                 total_by_project[e["uid"]] += e["days"]
 
         weekend_cls = " weekend" if weekday >= 5 else ""
@@ -181,15 +173,6 @@ def render_month(ym):
     if off_total > 0:
         legend += f'<div class="legend-item off-legend"><span class="legend-dot" style="background:{OFF_COLOR}"></span>Congé<span class="legend-days">{fmt_days(off_total)}</span></div>'
 
-    chome_total = sum(
-        e["days"]
-        for d, entries in by_date.items()
-        if d.year == year and d.month == month
-        for e in entries if e["uid"] == "chome"
-    )
-    if chome_total > 0:
-        legend += f'<div class="legend-item chome-legend"><span class="legend-dot" style="background:{CHOME_COLOR}"></span>Chômé<span class="legend-days">{fmt_days(chome_total)}</span></div>'
-
     headers = "".join(f'<div class="day-header">{h}</div>' for h in DAY_HEADERS)
 
     state_legend = f"""
@@ -199,7 +182,6 @@ def render_month(ym):
       <span class="state-item"><span class="state-swatch" style="background:#fffbe6"></span>Aujourd'hui</span>
       <span class="state-item"><span class="state-swatch" style="background:#fdecea"></span>Jour × 0</span>
       <span class="state-item"><span class="state-swatch" style="background:{OFF_COLOR}"></span>Congé</span>
-      <span class="state-item"><span class="state-swatch" style="background:{CHOME_COLOR}"></span>Chômé</span>
     </div>"""
 
     return f"""
@@ -214,25 +196,29 @@ def render_month(ym):
 
 MONTH_ABBR = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"]
 
+current_year = date.today().year
+
+# every month of the current year is selectable (even with no data yet, so
+# the calendar import can fill in months that haven't been tracked locally
+# at all) -- past years stay limited to months that actually have data
 years_available = defaultdict(set)
 for ym in months_with_data:
     y, m = int(ym[:4]), int(ym[5:])
     years_available[y].add(m)
+years_available[current_year].update(range(1, 13))
 
 years_sorted = sorted(years_available.keys(), reverse=True)
 
-current_ym = datetime.now().strftime("%Y-%m")
-if current_ym in months_with_data:
-    sel_year, sel_month = int(current_ym[:4]), int(current_ym[5:])
-else:
-    latest = months_with_data[0]
-    sel_year, sel_month = int(latest[:4]), int(latest[5:])
+sel_year, sel_month = current_year, date.today().month
+
+all_yms = sorted(set(months_with_data) | {f"{current_year}-{m:02d}" for m in range(1, 13)}, reverse=True)
 
 tabs_content = ""
-for ym in months_with_data:
+for ym in all_yms:
     tid = f"tab-{ym}"
     active = "active" if ym == f"{sel_year}-{sel_month:02d}" else ""
-    tabs_content += f'<div class="tab-panel {active}" id="{tid}">{render_month(ym)}</div>'
+    content = render_month(ym) if ym in months_with_data else '<div class="cal-empty">Aucune tâche déclarée</div>'
+    tabs_content += f'<div class="tab-panel {active}" id="{tid}">{content}</div>'
 
 years_nav = ""
 for y in years_sorted:
@@ -254,21 +240,85 @@ CALENDAR_PREVIEW_SCRIPT = """
 function escHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+function activeYm() {
+  return selectedYear + '-' + String(selectedMonth).padStart(2, '0');
+}
+
+let lastRows = [];
+let showIgnored = false;
+
+function rowClass(r) {
+  if (r.status === 'UNMATCHED') return 'cal-unmatched';
+  if (r.status === 'ignored') return 'cal-ignored';
+  if (r.local === 'conflict') return 'cal-local-conflict';
+  if (r.local === 'match') return 'cal-local-match';
+  if (r.status === 'alias') return 'cal-ignored';   // off, not yet resolved either way
+  return '';
+}
+
+function isGrayed(r) {
+  return rowClass(r) === 'cal-ignored';
+}
+
+function toggleShowIgnored() {
+  showIgnored = document.getElementById('cal-show-ignored').checked;
+  renderRows();
+  return false;
+}
+
+function rowAction(r, i) {
+  if (r.local === 'match') return '<span class="cal-local-label">Déjà présent</span>';
+  if (r.local === 'conflict') return '<button class="cal-row-import cal-row-replace" onclick="return importRow(' + i + ')">Remplacer</button>';
+  if (r.local === 'new') return '<button class="cal-row-import" onclick="return importRow(' + i + ')">Importer</button>';
+  return '';
+}
+
+function renderRows() {
+  const tbody = document.getElementById('cal-preview-tbody');
+  tbody.innerHTML = lastRows.map(function (r, i) {
+    const hiddenAttr = (isGrayed(r) && !showIgnored) ? ' hidden' : '';
+    return '<tr class="' + rowClass(r) + '"' + hiddenAttr + '>' +
+      '<td>' + r.date + ' (' + r.weekday + ')</td>' +
+      '<td>' + escHtml(r.title) + '</td>' +
+      '<td>' + (r.uid || '?') + '</td>' +
+      '<td class="num">' + r.fraction + '</td>' +
+      '<td>' + r.status + '</td>' +
+      '<td>' + rowAction(r, i) + '</td>' +
+      '</tr>';
+  }).join('');
+
+  const banner = document.getElementById('cal-conflict-banner');
+  const conflicts = lastRows.filter(function (r) { return r.local === 'conflict'; }).length;
+  if (conflicts > 0) {
+    banner.textContent = conflicts + ' différence(s) à traiter';
+    banner.style.display = '';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function updateImportAllVisibility() {
+  const allBtn = document.getElementById('cal-import-all-btn');
+  allBtn.style.display = lastRows.some(function (r) { return r.local === 'new'; }) ? '' : 'none';
+}
+
 function loadCalendarPreview() {
   const btn = document.getElementById('cal-preview-btn');
   const summary = document.getElementById('cal-preview-summary');
-  const tbody = document.getElementById('cal-preview-tbody');
   if (!(window.pywebview && window.pywebview.api)) {
     summary.textContent = "Indisponible en dehors de l'application.";
     return false;
   }
+  const ym = activeYm();
   btn.disabled = true;
   btn.textContent = 'Chargement…';
   summary.textContent = '';
-  tbody.innerHTML = '';
-  window.pywebview.api.fetch_calendar_preview('__YM__').then(function (result) {
+  lastRows = [];
+  renderRows();
+  document.getElementById('cal-import-all-btn').style.display = 'none';
+  window.pywebview.api.fetch_calendar_preview(ym).then(function (result) {
     btn.disabled = false;
-    btn.textContent = "Recharger l'aperçu (__YM__)";
+    btn.textContent = "Recharger l'aperçu (" + ym + ")";
     if (!result || !result.ok) {
       summary.textContent = 'Erreur : ' + (result && result.error || '?');
       return;
@@ -277,25 +327,94 @@ function loadCalendarPreview() {
       summary.textContent = 'Aucun événement trouvé sur ce mois.';
       return;
     }
-    const STATUS_CLASS = { UNMATCHED: 'cal-unmatched', 'fuzzy?': 'cal-fuzzy', ignored: 'cal-ignored' };
-    let unmatched = 0;
-    tbody.innerHTML = result.rows.map(function (r) {
-      if (r.status === 'UNMATCHED') unmatched++;
-      const cls = STATUS_CLASS[r.status] || '';
-      return '<tr class="' + cls + '">' +
-        '<td>' + r.date + '</td>' +
-        '<td>' + r.weekday + '</td>' +
-        '<td>' + escHtml(r.title) + '</td>' +
-        '<td>' + (r.uid || '?') + '</td>' +
-        '<td class="num">' + r.fraction + '</td>' +
-        '<td>' + r.status + '</td>' +
-        '</tr>';
-    }).join('');
-    summary.textContent = result.rows.length + ' événement(s) — ' + unmatched + ' non résolu(s)';
+    lastRows = result.rows;
+    renderRows();
+    updateImportAllVisibility();
+    const unmatched = lastRows.filter(function (r) { return r.status === 'UNMATCHED'; }).length;
+    summary.textContent = lastRows.length + ' événement(s) — ' + unmatched + ' non résolu(s)';
   });
   return false;
 }
-""".replace("__YM__", current_ym)
+
+async function importRow(i) {
+  const r = lastRows[i];
+  if (!r || !(window.pywebview && window.pywebview.api)) return false;
+  let replace = false;
+  if (r.local === 'conflict') {
+    const msg = 'Le projet "' + r.uid + '" est déjà déclaré le ' + r.date +
+      ' avec ' + r.existing_fraction + ' j (calendrier : ' + r.fraction + ' j).\\n\\n' +
+      'Voulez-vous remplacer la donnée existante ?';
+    if (!confirm(msg)) return false;
+    replace = true;
+  } else if (r.local !== 'new') {
+    return false;
+  }
+  const result = await window.pywebview.api.import_calendar_entry(activeYm(), r.date, r.uid, r.fraction, replace);
+  if (result && result.ok) {
+    r.local = 'match';
+    r.existing_fraction = r.fraction;
+    renderRows();
+    updateImportAllVisibility();
+    await reloadAfterImport();
+  } else if (result && result.conflict) {
+    alert("Le fichier a changé entre-temps, rechargez l'aperçu avant de réessayer.");
+  } else {
+    alert('Échec import : ' + (result && result.error || '?'));
+  }
+  return false;
+}
+
+async function reloadAfterImport() {
+  if (!(window.pywebview && window.pywebview.api)) return;
+  document.body.style.cursor = 'wait';
+  try {
+    await window.pywebview.api.run('tasks_calendar.html');
+  } catch (e) {}
+  window.location.reload();
+}
+
+async function importAllRows() {
+  const allBtn = document.getElementById('cal-import-all-btn');
+  const summary = document.getElementById('cal-preview-summary');
+  if (!(window.pywebview && window.pywebview.api)) return false;
+  allBtn.disabled = true;
+  allBtn.textContent = 'Import en cours…';
+  const conflicts = lastRows.filter(function (r) { return r.local === 'conflict'; }).length;
+  let added = 0, failed = 0;
+  for (let i = 0; i < lastRows.length; i++) {
+    const r = lastRows[i];
+    if (r.local !== 'new') continue;   // conflicts need a manual, per-row decision
+    const result = await window.pywebview.api.import_calendar_entry(activeYm(), r.date, r.uid, r.fraction, false);
+    if (result && result.ok) {
+      r.local = 'match';
+      r.existing_fraction = r.fraction;
+      added++;
+    } else {
+      failed++;
+    }
+  }
+  renderRows();
+  allBtn.disabled = false;
+  allBtn.textContent = "Importer tout";
+  updateImportAllVisibility();
+  let msg = added + ' ajouté(s)';
+  if (conflicts) msg += ', ' + conflicts + ' conflit(s) à traiter manuellement';
+  if (failed) msg += ', ' + failed + ' échec(s)';
+  summary.textContent = msg;
+  if (added > 0) await reloadAfterImport();
+  return false;
+}
+
+function resetCalendarPreview() {
+  const btn = document.getElementById('cal-preview-btn');
+  if (!btn || btn.disabled) return;  // don't clobber a fetch in progress
+  btn.textContent = "Charger l'aperçu (" + activeYm() + ")";
+  document.getElementById('cal-preview-summary').textContent = '';
+  lastRows = [];
+  renderRows();
+  document.getElementById('cal-import-all-btn').style.display = 'none';
+}
+"""
 
 # ─── assemble ─────────────────────────────────────────────────────────────────
 
@@ -327,6 +446,8 @@ page_style = """
 
   /* calendar */
   .cal-grid { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+  .cal-empty { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+                padding: 60px 20px; text-align: center; color: #bbb; font-size: 14px; font-weight: 600; }
   .day-headers { display: grid; grid-template-columns: repeat(7, 1fr);
                   background: #f7f7f7; border-bottom: 1px solid #eee; }
   .day-header { padding: 8px; text-align: center; font-size: 11px; font-weight: 600;
@@ -374,12 +495,27 @@ page_style = """
   tr.cal-unmatched td { background: #fdecea; }
   tr.cal-fuzzy td { background: #fff8e1; }
   tr.cal-ignored td { color: #bbb; }
-  #cal-preview-btn { padding: 7px 16px; border: none; border-radius: 20px;
+  tr.cal-local-match td { background: #eaf7ea; }
+  tr.cal-local-conflict td { background: #fff1e0; }
+  .cal-local-label { color: #4a8a4a; font-size: 11px; font-weight: 600; }
+  #cal-preview-btn, #cal-import-all-btn { padding: 7px 16px; border: none; border-radius: 20px;
                       background: #222; color: #fff; cursor: pointer; font-size: 12px;
                       font-weight: 600; }
-  #cal-preview-btn:hover { background: #444; }
-  #cal-preview-btn:disabled { opacity: .5; cursor: default; }
+  #cal-preview-btn:hover, #cal-import-all-btn:hover { background: #444; }
+  #cal-preview-btn:disabled, #cal-import-all-btn:disabled { opacity: .5; cursor: default; }
+  #cal-import-all-btn { background: #2e7d32; margin-left: 8px; }
+  #cal-import-all-btn:hover { background: #256428; }
   #cal-preview-summary { margin-left: 12px; color: #888; font-size: 12px; }
+  .cal-row-import { padding: 4px 10px; border: none; border-radius: 14px;
+                     background: #222; color: #fff; cursor: pointer; font-size: 11px; font-weight: 600; }
+  .cal-row-import:hover { background: #444; }
+  .cal-row-replace { background: #d97706; }
+  .cal-row-replace:hover { background: #b45f04; }
+  .cal-conflict-banner { display: inline-block; margin-bottom: 8px; padding: 6px 14px;
+                           border-radius: 20px; background: #fff1e0; color: #b45f04;
+                           font-size: 12px; font-weight: 600; }
+  .cal-toggle-ignored { display: inline-flex; align-items: center; gap: 5px;
+                          margin-left: 12px; font-size: 12px; color: #888; cursor: pointer; }
 """
 
 body_content = f"""
@@ -393,11 +529,17 @@ body_content = f"""
 
 <h2>Import Google Calendar — aperçu</h2>
 <div class="meta">
-  <button id="cal-preview-btn" onclick="return loadCalendarPreview()">Charger l'aperçu ({current_ym})</button>
+  <button id="cal-preview-btn" onclick="return loadCalendarPreview()">Charger l'aperçu ({sel_year}-{sel_month:02d})</button>
+  <button id="cal-import-all-btn" onclick="return importAllRows()" style="display:none">Importer tout</button>
+  <label class="cal-toggle-ignored">
+    <input type="checkbox" id="cal-show-ignored" onchange="return toggleShowIgnored()">
+    Afficher les jours ignorés
+  </label>
   <span id="cal-preview-summary"></span>
 </div>
+<div id="cal-conflict-banner" class="cal-conflict-banner" style="display:none"></div>
 <table id="cal-preview-table" data-default-sort="0:asc">
-  <thead>{th("Date", "Jour", "Titre calendrier", "Projet", "Fraction", "Statut")}</thead>
+  <thead>{th("Date", "Titre calendrier", "Projet", "Fraction", "Statut", "Action")}</thead>
   <tbody id="cal-preview-tbody"></tbody>
 </table>
 
@@ -408,7 +550,22 @@ const YEARS_DATA = {years_data_js};
 let selectedYear = {sel_year};
 let selectedMonth = {sel_month};
 
+// restore the last month the user was viewing (e.g. across the reload that
+// follows a calendar import) instead of always defaulting to today's month
+try {{
+  const saved = localStorage.getItem('calendrier::lastMonth');
+  if (saved) {{
+    const parts = saved.split('-');
+    const y = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+    if (YEARS_DATA[y] && YEARS_DATA[y].includes(m)) {{
+      selectedYear = y;
+      selectedMonth = m;
+    }}
+  }}
+}} catch (e) {{}}
+
 function render() {{
+  try {{ localStorage.setItem('calendrier::lastMonth', selectedYear + '-' + String(selectedMonth).padStart(2, '0')); }} catch (e) {{}}
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   const ym = selectedYear + '-' + String(selectedMonth).padStart(2, '0');
   const panel = document.getElementById('tab-' + ym);
@@ -429,6 +586,8 @@ function render() {{
       document.getElementById('btn-month-' + m).classList.add('disabled');
     }}
   }}
+
+  resetCalendarPreview();
 }}
 
 function selectYear(y) {{

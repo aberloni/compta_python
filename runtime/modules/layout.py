@@ -42,7 +42,8 @@ PAGES = [
 NAV_CSS = """
   body { padding: 0 !important; margin: 0 !important; }
   .app-nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-             padding: 0 24px; height: 52px; background: #1c1c1c; }
+             padding: 0 24px; height: 52px; background: #1c1c1c;
+             position: sticky; top: 0; z-index: 1000; }
   .app-nav .brand { color: #fff; font-weight: 700; font-size: 14px;
                      margin-right: 20px; letter-spacing: .02em; white-space: nowrap; }
   .app-nav a { color: #aaa; text-decoration: none; font-size: 13px;

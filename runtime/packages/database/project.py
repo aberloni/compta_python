@@ -78,6 +78,7 @@ class Project:
 
         self.uid = self.assoc.filterKey("uid")
         self.name = self.assoc.filterKey("name")
+        self.color = self.assoc.filterKey("color")
 
         # client history parsed lazily via getClient(date)
         # self.client kept as shortcut for the base (no-date) client — rétrocompat
@@ -181,8 +182,8 @@ class Project:
                         if self.verbose: print("+Designation :   "+bill.designation)
 
                     case "objet":
-                        self.name = e.value
-                        if self.verbose: print("+Objet :   "+self.name)
+                        bill.objet = e.value
+                        if self.verbose: print("+Objet :   "+bill.objet)
                         
         #print("bill : "+self.uid+" , solved x" ,len(self.bills))
                 

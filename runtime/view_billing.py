@@ -246,7 +246,8 @@ def render_tab(bills_slice):
             x2 = cx + r * math.cos(angle + sweep)
             y2 = cy + r * math.sin(angle + sweep)
             large = 1 if sweep > math.pi else 0
-            color = COLORS[idx % len(COLORS)]
+            _client = db.getClient(cuid)
+            color = (_client.color if _client else None) or COLORS[idx % len(COLORS)]
             slices += f'<path d="M{cx},{cy} L{x1:.2f},{y1:.2f} A{r},{r} 0 {large},1 {x2:.2f},{y2:.2f} Z" fill="{color}" stroke="#fff" stroke-width="1.5"/>'
             pct = frac * 100
             legend += f'<div class="pie-legend-item"><span class="pie-dot" style="background:{color}"></span>{cd["name"]} — {pct:.1f}%</div>'
@@ -262,8 +263,8 @@ def render_tab(bills_slice):
 
     {payment_html}
 
-    <h2>Factures non payées</h2>
-    <table data-default-sort="1:asc">
+    <h2 class="unpaid-title">Factures non payées</h2>
+    <table class="unpaid-table" data-default-sort="1:asc">
       <thead>{th("ID", "Date facture", "Période", "Client", "Projet", "Jours", "Taux", "HT", "TTC", "Payée le")}</thead>
       <tbody>{unpaid_rows or '<tr><td colspan="10" class="empty">Aucune facture en attente</td></tr>'}</tbody>
     </table>
@@ -415,6 +416,10 @@ page_style = """
   .tag.forfait { background: #fce8b2; color: #b06000; }
   .reste-ok  { color: #2e7d32; font-weight: 600; }
   .reste-due { color: #c62828; font-weight: 600; }
+  .unpaid-title { color: #b06000; }
+  .unpaid-table thead th { background: #fce8b2; color: #8a5700; }
+  .unpaid-table tbody td { background: #fffaf0; }
+  .unpaid-table tbody tr:hover td { background: #fdecc8; }
   .paid-date { color: #2e7d32; font-weight: 600; }
   .total-row td { font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }
 

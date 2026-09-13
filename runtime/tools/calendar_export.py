@@ -2,13 +2,15 @@
 Fetch a Google Calendar (read-only, via its secret iCal feed) and preview
 what would be injected into database/tasks/{YYYY-MM}.task.
 
-Does NOT write anything yet — prints a table for review first.
+Running this script only prints a preview table, it never writes anything.
+Writing is done one entry at a time via write_task_entry() below, used by the
+Calendrier page's "Importer" buttons (see app_gui.py).
 
 Calendar convention expected:
     Project              -> full day (1) on that project
     Project, 0.5          -> half day on that project
     Project, 0            -> worked but excluded from billing (len 0)
-    off                   -> maps to "chome" in the .task file
+    off                   -> non-billable day, written as-is to the .task file
 
 Setup:
     database/infos/calendar.info must contain:
@@ -20,6 +22,7 @@ Usage (run from runtime/):
     (defaults to the current month if omitted)
 """
 
+import os
 import re
 import sys
 import calendar as pycalendar
@@ -34,14 +37,13 @@ except ImportError:
 
 import configs
 from modules.assocs import Assoc
+from modules.path import Path
 from packages.database.database import Database, DatabaseType
 
 # ─── config ─────────────────────────────────────────────────────────────────
 
-# calendar title -> .task uid, for labels that don't match a project uid/name
-TITLE_ALIASES = {
-    "off": "chome",
-}
+# reserved uid recognized directly by name, not a real project
+SPECIAL_UIDS = {"off"}
 
 # events whose title starts with one of these (case-insensitive) are personal
 # reminders, not work days — skip them entirely (e.g. "TVA" = declaration due
@@ -54,6 +56,12 @@ IGNORE_PREFIXES = [
 # work days are tracked as all-day events; timed events (meetings, calls...)
 # are ignored by default since they aren't the day-tracking convention
 ALL_DAY_ONLY = True
+
+# named fraction labels, for titles like "merlies preshot" or "merlies,preshot"
+# where the word describes a [0,1] time value instead of a plain number/ratio
+FRACTION_LABELS = {
+    "preshot": 1.0,
+}
 
 WEEKDAY_FR = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
 
@@ -74,8 +82,11 @@ def fetch_ics(url):
 
 
 def parse_fraction(token):
-    """Mirror Task._parse_modifier semantics (packages/database/task.py)."""
+    """Mirror Task._parse_modifier semantics (packages/database/task.py),
+    plus named FRACTION_LABELS aliases (e.g. 'preshot' -> 1.0)."""
     token = token.strip()
+    if token.lower() in FRACTION_LABELS:
+        return FRACTION_LABELS[token.lower()]
     if token in ("0", "0.0"):
         return 0.0
     if "." in token:
@@ -211,8 +222,8 @@ def build_matchers(db=None):
 
 def match_label(label, uid_map, name_map):
     key = label.strip().lower()
-    if key in TITLE_ALIASES:
-        return TITLE_ALIASES[key], "alias"
+    if key in SPECIAL_UIDS:
+        return key, "alias"
     if key in uid_map:
         return uid_map[key], "uid"
     if key in name_map:
@@ -236,6 +247,130 @@ def resolve_event(raw_title, uid_map, name_map):
     uid, status = match_label(label, uid_map, name_map)
     return uid, fraction, status
 
+# ─── writing (Importer buttons, see app_gui.py) ─────────────────────────────
+
+def format_modifier(fraction):
+    if fraction == 1.0:
+        return ""
+    if fraction == 0:
+        return " 0"
+    return f" {fraction:g}"
+
+
+def task_file_path(ym):
+    return os.path.join(Path.getDbTypePath(DatabaseType.tasks), f"{ym}.task")
+
+
+def parse_existing_lines(lines):
+    """{(day, uid): fraction} already present in a .task file's raw lines.
+    A day can have several (uid) entries (split days across projects) --
+    only an identical (day, uid) pair counts as "already declared"."""
+    entries = {}
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        key, sep, value = stripped.partition(":")
+        if not sep or not key.strip().isdigit():
+            continue
+        day = int(key.strip())
+        tokens = value.split("#", 1)[0].split()
+        if not tokens:
+            continue
+        uid = tokens[0]
+        fraction = 1.0
+        for token in tokens[1:]:
+            parsed = parse_fraction(token)
+            if parsed is not None:
+                fraction = parsed
+                break
+        entries[(day, uid)] = fraction
+    return entries
+
+
+def read_existing_entries(ym):
+    """{(day, uid): fraction} already declared in database/tasks/{ym}.task."""
+    path = task_file_path(ym)
+    if not os.path.isfile(path):
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        return parse_existing_lines(f.read().splitlines())
+
+
+def line_day(line):
+    """Day number of a .task line, whether active or commented out (the
+    template placeholders routine_tasks.py generates), else None."""
+    stripped = line.strip().lstrip("#").strip()
+    key, sep, _ = stripped.partition(":")
+    key = key.strip()
+    return int(key) if sep and key.isdigit() else None
+
+
+def _write_lines(path, lines):
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n" if lines else "")
+
+
+def write_task_entry(ym, day, uid, fraction, replace=False):
+    """Write one day/project/fraction entry to database/tasks/{ym}.task,
+    creating the file if needed, keeping entries in day order.
+    - nothing declared yet for (day, uid): inserted in chronological order,
+      right after any existing entries for that same day.
+    - already declared with the same fraction: no-op, reports skipped.
+    - already declared with a DIFFERENT fraction: left untouched and reports
+      a conflict, unless replace=True (the UI confirms with the user first),
+      in which case that line's value is rewritten in place."""
+    path = task_file_path(ym)
+
+    existing = ""
+    if os.path.isfile(path):
+        with open(path, "r", encoding="utf-8") as f:
+            existing = f.read()
+
+    lines = existing.splitlines()
+    current = parse_existing_lines(lines).get((day, uid))
+
+    if current is not None and abs(current - fraction) < 1e-9:
+        return {"ok": True, "skipped": True}
+
+    if current is not None and not replace:
+        return {"ok": False, "conflict": True, "existing_fraction": current}
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    day_str = f"{day:02d}"
+
+    if current is not None:
+        # replace: rewrite the matching line's value in place, same position
+        for idx, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                key, sep, value = stripped.partition(":")
+                if sep and key.strip() == day_str:
+                    value_wo_comment, hash_sign, comment = value.partition("#")
+                    if value_wo_comment.split()[:1] == [uid]:
+                        suffix = f" #{comment}" if hash_sign else ""
+                        lines[idx] = f"{day_str}: {uid}{format_modifier(fraction)}{suffix}"
+                        break
+        _write_lines(path, lines)
+        return {"ok": True, "skipped": False, "replaced": True}
+
+    if not existing.strip():
+        lines = [f"# {ym}", ""]
+
+    # insert in chronological order: right after the last existing entry for
+    # the same day, or right before the first entry for a later day
+    days = [line_day(l) for l in lines]
+    same_day = [i for i, d in enumerate(days) if d == day]
+    if same_day:
+        insert_at = same_day[-1] + 1
+    else:
+        later = [i for i, d in enumerate(days) if d is not None and d > day]
+        insert_at = later[0] if later else len(lines)
+    lines.insert(insert_at, f"{day_str}: {uid}{format_modifier(fraction)}")
+
+    _write_lines(path, lines)
+    return {"ok": True, "skipped": False}
+
 # ─── main ───────────────────────────────────────────────────────────────────
 
 def month_range(ym):
@@ -255,7 +390,7 @@ def main():
     uid_map, name_map = build_matchers()
 
     print(f"\n{ym}  ({range_start} → {range_end})   {len(events)} event(s)\n")
-    print(f"{'DATE':10}  {'DAY':3}  {'RAW TITLE':30}  {'UID':12}  {'FRAC':5}  STATUS")
+    print(f"{'DATE':16}  {'RAW TITLE':30}  {'UID':12}  {'FRAC':5}  STATUS")
     print("-" * 80)
 
     unmatched = 0
@@ -264,7 +399,8 @@ def main():
         if status == "UNMATCHED":
             unmatched += 1
         weekday = WEEKDAY_FR[event_date.weekday()]
-        print(f"{event_date} {weekday:3}  {raw_title[:30]:30}  {(uid or '???'):12}  {fraction:<5}  {status}")
+        date_str = f"{event_date} ({weekday})"
+        print(f"{date_str:16}  {raw_title[:30]:30}  {(uid or '???'):12}  {fraction:<5}  {status}")
 
     print("-" * 80)
     print(f"{len(events)} event(s), {unmatched} unmatched\n")

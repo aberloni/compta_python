@@ -137,7 +137,7 @@ def generateHtml(project, bill, exportFileName):
         client_address += f"<br/>TVA : {client.tva_number}"
     html = html.replace("{{client_address}}",    client_address)
     html = html.replace("{{bill_uid}}",          bill.getFullUid())
-    html = html.replace("{{project_name}}",      project.name)
+    html = html.replace("{{project_name}}",      bill.objet or project.name)
     html = html.replace("{{designation_block}}", designation_block)
     html = html.replace("{{mention_block}}",     mention_block)
     html = html.replace("{{line_items}}",        line_items)

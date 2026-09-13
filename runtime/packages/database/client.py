@@ -18,6 +18,7 @@ class Client:
         self.creditor = self.assoc.filterKey("creditor")
         self.country = (self.assoc.filterKey("country") or "FR").upper()
         self.tva_number = self.assoc.filterKey("tva")
+        self.color = self.assoc.filterKey("color")
 
         pass
 

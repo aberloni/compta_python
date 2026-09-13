@@ -110,7 +110,7 @@ class Api:
         try:
             from tools.calendar_export import (
                 load_ical_url, fetch_ics, parse_events, build_matchers,
-                resolve_event, month_range, WEEKDAY_FR,
+                resolve_event, read_existing_entries, month_range, WEEKDAY_FR,
             )
             from packages.database.database import Database
 
@@ -118,6 +118,7 @@ class Api:
             ics_bytes = fetch_ics(load_ical_url())
             events = parse_events(ics_bytes, range_start, range_end)
             uid_map, name_map = build_matchers(Database.init_billing())
+            existing_entries = read_existing_entries(ym)
         except Exception as e:
             print(f"✗ calendar preview — {e}")
             return {"ok": False, "error": str(e)}
@@ -125,6 +126,15 @@ class Api:
         rows = []
         for event_date, raw_title in events:
             uid, fraction, status = resolve_event(raw_title, uid_map, name_map)
+            local, existing_fraction = None, None
+            if uid:
+                existing_fraction = existing_entries.get((event_date.day, uid))
+                if existing_fraction is None:
+                    local = "new"
+                elif abs(existing_fraction - fraction) < 1e-9:
+                    local = "match"
+                else:
+                    local = "conflict"
             rows.append({
                 "date": str(event_date),
                 "weekday": WEEKDAY_FR[event_date.weekday()],
@@ -132,9 +142,34 @@ class Api:
                 "uid": uid or "",
                 "fraction": fraction,
                 "status": status,
+                "local": local,
+                "existing_fraction": existing_fraction,
             })
         print(f"✓ calendar preview — {len(rows)} event(s)")
         return {"ok": True, "rows": rows}
+
+    def import_calendar_entry(self, ym, date_str, uid, fraction, replace=False):
+        """Write one resolved calendar row into database/tasks/{ym}.task —
+        called by the Calendrier page's per-row and "Importer tout" buttons.
+        A project already declared that day with the same fraction is a
+        no-op (skipped); a different fraction is left untouched and reported
+        as a conflict unless replace=True (the UI confirms with the user
+        first). Several projects can share the same day without conflict."""
+        if not uid:
+            return {"ok": False, "error": "aucun projet résolu"}
+        print(f"→ import calendar entry {date_str} → {uid} ({fraction}){' [replace]' if replace else ''}")
+        try:
+            from tools.calendar_export import write_task_entry
+            day = int(date_str.split("-")[-1])
+            result = write_task_entry(ym, day, uid, float(fraction), replace=bool(replace))
+        except Exception as e:
+            print(f"✗ import — {e}")
+            return {"ok": False, "error": str(e)}
+        if result.get("conflict"):
+            print(f"✗ import — conflit ({result.get('existing_fraction')} existant)")
+        else:
+            print(f"✓ import — {'déjà présent' if result.get('skipped') else 'ajouté'}")
+        return result
 
     def restart(self):
         """Close this window and relaunch the app in a new process. Runs the

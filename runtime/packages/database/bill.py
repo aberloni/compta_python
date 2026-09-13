@@ -27,6 +27,7 @@ class Bill:
 
     label = ""       # replaces "Prestation x N j" in line items
     designation = "" # subtitle above the line items table
+    objet = ""       # replaces the project name in the invoice's "objet" line, this bill only
 
     start = None
     end = None

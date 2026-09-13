@@ -82,6 +82,7 @@ address:...|...
 creditor:DARJEELING SARL
 country:BE              ← ISO 3166-1 alpha-2, optional, defaults to FR
 tva:BE1006963829        ← client's own VAT number, optional — shown on the bill if present
+color:#4e79a7           ← optional, hex color used in views (e.g. billing.html pie chart) instead of the auto-assigned palette color
 ```
 `creditor` = label used to match bank statement lines.
 
@@ -94,6 +95,7 @@ tva:0.2
 taux:280                 ← daily rate € (base, always applicable)
 taux:2024-06-01=320      ← rate effective from that date (multiple lines allowed)
 taux:2025-01-01=350      ← most recent line <= bill date wins
+color:#ffadad            ← optional, hex color used in views (e.g. view_tasks_calendar.py) instead of the auto-assigned palette color
 ```
 Multiple `taux` lines can coexist. `Project.getTaux(date)` returns the applicable rate at a given date.
 If a bill spans months with different rates, `getHT()` sums per-month; the PDF displays `"280 → 320 € HT"`.
@@ -117,14 +119,12 @@ projectUid:YYYY-MM-DD,0.5       ← half day (also: 1/2, 0.25, 0.75, 1/4)
 projectUid:YYYY-MM-DD,0         ← zero
 projectUid:YYYY-MM-DD,>YYYY-MM  ← redirect: bill to a different month
 projectUid:YYYY-MM-DD,"some label"
-off:YYYY-MM-DD                  ← vacation / off day, planned (never billed, shown in calendar)
+off:YYYY-MM-DD                  ← non-billable day (never billed, shown in calendar)
 off:YYYY-MM-DD,0.5              ← half-day off
-chome:YYYY-MM-DD                ← unaccounted day, no info (never billed, shown in calendar)
-chome:YYYY-MM-DD,0.5            ← half-day chômé
 ```
 Time value is a float in [0, 1] representing fraction of an 8h day.
 
-`off` and `chome` are reserved uids for non-billable days. `off` = planned/anticipated time off; `chome` = day with no recorded information. Both are excluded from all billing and project totals, and both appear in `view_tasks_calendar.py` (off in blue, chômé in grey).
+`off` is a reserved uid for non-billable days, excluded from all billing and project totals, shown in blue in `view_tasks_calendar.py`.
 
 **Amélioration prévue** : le `YYYY-MM` dans chaque date est redondant avec le nom de fichier. Cible : accepter juste le jour — `projectUid:DD` ou `projectUid:DD,0.5` — et reconstruire la date complète depuis le nom de fichier dans `Task.__init__`. Rétrocompatibilité avec `YYYY-MM-DD` à conserver.
 
@@ -232,3 +232,4 @@ openBillingFolder = True                 # os.startfile() after export (Windows)
 - `Bill.verbose`, `Project.verbose`, `Task.verbose` flags for debug prints.
 - `configs.is_debugging()` detects debugger attach (writes `.dump` files).
 - `change.log` at repo root tracks every change (code or data), grouped by day (`## YYYY-MM-DD` heading, one bullet per change). Append to it whenever a change is made — don't wait to be asked. Write each bullet as a simple, plain-language sentence describing the task achieved (no file names, function names, or technical detail) — readable by a non-technical person.
+- Never execute/open the generated pages (`exports/view/*.html`) in a browser or IDE preview tool to test them. Verify changes by reading the code, running the underlying Python directly (e.g. calling an `Api` method or a `view_*.py` script from the CLI), or asking the user to check in the real app.

@@ -35,3 +35,17 @@ Simple list of changes, grouped by day.
 - Calendar events whose title starts with "TVA" are now skipped entirely in the calendar import preview, since those are personal declaration reminders, not work days.
 - Calendar events whose title starts with a parenthesis, like "(rdv dentiste)", are now also skipped in the calendar import preview.
 - Ignored calendar events (TVA reminders, parenthesis notes) now still show up in the calendar import preview, just grayed out, instead of disappearing from the list.
+- The calendar import button now follows whichever month you're currently viewing on the Calendrier page, instead of always fetching the real current month.
+- Every month of the current year can now be selected on the Calendrier page, even ones with nothing tracked yet, so the calendar import can be used to fill in a month that has no data at all. A month with nothing declared shows "Aucune tâche déclarée" instead of an empty calendar grid.
+- The calendar import now understands named words for a day fraction, not just numbers — "preshot" in a calendar title now always means a full day, matched with confidence instead of a rough guess.
+- Merged the date and day-of-week columns into one in the calendar import preview table.
+- Off/chômé days are now shown grayed out in the calendar import preview too, so the days actually tied to a project stand out more.
+- Added actual import buttons to the calendar import preview: one per row, and one to import everything at once. A day that's genuinely new gets added; a day already recorded the same way is left alone; a day recorded differently turns orange and asks for confirmation before replacing it, and is never touched by the "import everything" button (only handled one by one, on purpose).
+- Days added by the calendar import now land in the right chronological spot in the file, instead of always being tacked on at the end.
+- Clients and projects can now be given their own color, which is used wherever that client or project already shows up in color (the billing pie chart, the calendar view) instead of an automatically picked one. There's no color picker yet — the color has to be typed in by hand for now.
+- After importing something from the calendar, the Calendrier page now redoes its calculations and reloads itself automatically, so the day you just added shows up right away instead of needing a manual refresh.
+- Fixed a bug where giving one specific invoice a custom title ("objet") was overwriting that project's name everywhere else too (calendar, other invoices, other months) instead of just on that one invoice.
+- The Calendrier page now remembers which month you were looking at and reopens on it, instead of jumping back to the current month every time it reloads (in particular right after importing something from the calendar).
+- The calendar import preview now shows how many differences still need attention right above the table, updating live as you resolve them one by one.
+- Grayed-out days (ignored reminders, off/chômé) are now hidden by default in the calendar import preview, with a checkbox to show them again.
+- Removed the separate "chômé" concept, which duplicated "off" for the same purpose (an unpaid, untracked day). Only "off" is used now, everywhere.
