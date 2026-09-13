@@ -49,3 +49,15 @@ Simple list of changes, grouped by day.
 - The calendar import preview now shows how many differences still need attention right above the table, updating live as you resolve them one by one.
 - Grayed-out days (ignored reminders, off/chômé) are now hidden by default in the calendar import preview, with a checkbox to show them again.
 - Removed the separate "chômé" concept, which duplicated "off" for the same purpose (an unpaid, untracked day). Only "off" is used now, everywhere.
+- Added a new "Éditer factures" page where you can change the start/end period of an existing invoice, or add a new invoice to a project, directly from the app.
+- Added a "PDF" button at the end of each invoice row on the "Éditer factures" page, so you can generate (or regenerate) that invoice's PDF and have it open right away, without running a full billing export.
+- The Virements page now lets you record a newly received transfer, and link an existing transfer to an invoice (or change/remove that link), directly from the app instead of editing the file by hand.
+- "Ajouter une facture" is now a round + button fixed in the bottom-right corner of the Éditer factures page, which opens a small popup to fill in the project and dates, instead of a form sitting under each project's table.
+- Added a "Supprimer" button to each invoice on the Éditer factures page. It's grayed out and disabled for any invoice that already has a received transfer linked to it, so a paid invoice can't be deleted by mistake.
+- Fixed the "Ajouter une facture" popup on the Éditer factures page showing up open by default instead of staying hidden until the + button is clicked.
+- The "Ajouter une facture" popup no longer asks which project to add to — it now always adds to whichever project tab you currently have open, shown as a label instead of a dropdown.
+- Added a new "Clients" page where you can pick one client at a time (same as picking a project on the other pages) and edit its details (name, address, invoicing name, country, VAT number, color), or add a brand new client, directly from the app.
+- The client color field now has an actual color picker next to it, instead of only typing a hex code by hand.
+- The client address is now edited as two separate fields (street, city), instead of one field where you had to type the line-break character by hand.
+- The client country field now suggests countries by name as you type, instead of expecting you to already know the 2-letter code by heart.
+- Leaving a client's color field empty when adding or saving it now automatically picks a color no other client is already using, instead of leaving it uncolored.

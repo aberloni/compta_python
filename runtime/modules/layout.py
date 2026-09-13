@@ -26,43 +26,49 @@ table, in localStorage) and takes over as the ASC default on the next page
 open, overriding data-default-sort.
 """
 
-# (filename, nav label, generating script) — filename must match what each
-# view_*.py writes under exports/view/; script is the file app_gui.py runs to
-# (re)generate it. Order here is the order shown in the nav.
+# (filename, nav label, generating script, is_edit) — filename must match what
+# each view_*.py writes under exports/view/; script is the file app_gui.py
+# runs to (re)generate it. Order here is the order shown in each nav group.
+# is_edit splits the nav into two groups (consultation pages, then edit
+# pages), separated by a divider — see render_shell().
 PAGES = [
-    ("homepage.html",       "Accueil",         "view_homepage.py"),
-    ("billing.html",        "Facturation",     "view_billing.py"),
-    ("tva.html",            "TVA",             "view_tva.py"),
-    ("trimester.html",      "Trimestres",      "view_trimester.py"),
-    ("tasks.html",          "Tâches",          "view_tasks.py"),
-    ("tasks_calendar.html", "Calendrier",      "view_tasks_calendar.py"),
-    ("wiring.html",         "Virements",       "view_wiring.py"),
+    ("homepage.html",       "Accueil",         "view_homepage.py",      False),
+    ("billing.html",        "Facturation",     "view_billing.py",       False),
+    ("tva.html",            "TVA",             "view_tva.py",           False),
+    ("trimester.html",      "Trimestres",      "view_trimester.py",     False),
+    ("tasks.html",          "Tâches",          "view_tasks.py",         False),
+    ("tasks_calendar.html", "Calendrier",      "view_tasks_calendar.py", False),
+    ("clients.html",        "Clients",         "view_clients.py",       True),
+    ("bills_edit.html",     "Éditer factures", "view_bills_edit.py",    True),
+    ("wiring.html",         "Virements",       "view_wiring.py",        True),
 ]
 
 NAV_CSS = """
   body { padding: 0 !important; margin: 0 !important; }
-  .app-nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-             padding: 0 24px; height: 52px; background: #1c1c1c;
-             position: sticky; top: 0; z-index: 1000; }
-  .app-nav .brand { color: #fff; font-weight: 700; font-size: 14px;
-                     margin-right: 20px; letter-spacing: .02em; white-space: nowrap; }
-  .app-nav a { color: #aaa; text-decoration: none; font-size: 13px;
-               padding: 7px 12px; border-radius: 6px;
+  .app-shell { display: flex; min-height: 100vh; align-items: stretch; }
+  .app-nav { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
+             width: 190px; padding: 16px 10px; background: #1c1c1c;
+             position: sticky; top: 0; align-self: flex-start; height: 100vh;
+             overflow-y: auto; box-sizing: border-box; z-index: 1000; }
+  .app-nav a { display: block; color: #aaa; text-decoration: none; font-size: 13px;
+               padding: 9px 12px; border-radius: 6px;
                transition: background .15s, color .15s; }
   .app-nav a:hover { background: #333; color: #fff; }
   .app-nav a.active { background: #fff; color: #1c1c1c; font-weight: 600; }
   .app-nav .nav-spacer { flex: 1; }
+  .nav-separator { height: 1px; background: #3a3a3a; margin: 8px 4px; }
+  .icon-row { display: flex; flex-direction: row; gap: 4px; }
   .icon-toggle { background: none; border: none; color: #888;
-                 display: inline-flex; align-items: center; justify-content: center;
-                 padding: 6px 10px; border-radius: 6px;
+                 display: flex; align-items: center; justify-content: center;
+                 padding: 8px 10px; border-radius: 6px; flex: 1;
+                 box-sizing: border-box;
                  cursor: pointer; transition: background .15s, color .15s; }
   .icon-toggle:hover { background: #333; color: #fff; }
   .icon-toggle.active { color: #4caf50; }
-  .app-body { padding: 24px 32px; }
+  .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .app-body { flex: 1; padding: 24px 32px; }
   .app-footer { padding: 16px 32px; color: #aaa; font-size: 11px;
                 text-align: center; border-top: 1px solid #e5e5e5; margin-top: 40px; }
-  .app-footer a { color: #aaa; margin-left: 10px; }
-  .app-footer a:hover { color: #666; }
   .error-banner { display: none; background: #c62828; color: #fff;
                   padding: 10px 24px; font-size: 13px; font-weight: 600; }
 
@@ -245,10 +251,15 @@ def render_shell(title, active_file, body_html, extra_style=""):
                    own <script> block, etc.) — no outer html/head/body tags
     extra_style -- the page's own <style> rules (without the <style> tags)
     """
-    nav_links = "".join(
-        f'<a href="{f}" onclick="return navigateTo(\'{f}\')"{" class=\"active\"" if f == active_file else ""}>{label}</a>'
-        for f, label, _script in PAGES
-    )
+    def _link(f, label):
+        active = ' class="active"' if f == active_file else ""
+        return f'<a href="{f}" onclick="return navigateTo(\'{f}\')"{active}>{label}</a>'
+
+    nav_links = "".join(_link(f, label) for f, label, _script, is_edit in PAGES if f == "homepage.html")
+    nav_links += '<div class="nav-separator"></div>'
+    nav_links += "".join(_link(f, label) for f, label, _script, is_edit in PAGES if not is_edit and f != "homepage.html")
+    nav_links += '<div class="nav-separator"></div>'
+    nav_links += "".join(_link(f, label) for f, label, _script, is_edit in PAGES if is_edit)
 
     return f"""<!DOCTYPE html>
 <html lang="fr">
@@ -262,27 +273,34 @@ def render_shell(title, active_file, body_html, extra_style=""):
 </head>
 <body>
 
-<nav class="app-nav">
-  <span class="brand">compta_python</span>
-  {nav_links}
-  <span class="nav-spacer"></span>
-  <button id="backup-btn" class="icon-toggle" onclick="return backupDatabase()" title="Exporter la base de données (zip)">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12.14l.81 1H5.12z"/></svg>
-  </button>
-  <button id="auto-refresh-btn" class="icon-toggle active" onclick="toggleAutoRefresh()" title="Auto refresh : activé">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-  </button>
-</nav>
+<div class="app-shell">
+  <nav class="app-nav">
+    {nav_links}
+    <span class="nav-spacer"></span>
+    <div class="icon-row">
+      <button id="backup-btn" class="icon-toggle" onclick="return backupDatabase()" title="Exporter la base de données (zip)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12.14l.81 1H5.12z"/></svg>
+      </button>
+      <button id="auto-refresh-btn" class="icon-toggle active" onclick="toggleAutoRefresh()" title="Auto refresh : activé">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+      </button>
+      <button id="restart-btn" class="icon-toggle" onclick="return restartApp()" title="Redémarrer l'application">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3h-2v10h2V3zm4.83 2.17-1.42 1.42A6.92 6.92 0 0 1 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.24 1.06-4.24 2.71-5.42L6.29 5.17A8.93 8.93 0 0 0 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9a8.93 8.93 0 0 0-3.17-6.83z"/></svg>
+      </button>
+    </div>
+  </nav>
 
-<div id="error-banner" class="error-banner"></div>
+  <div class="app-main">
+    <div id="error-banner" class="error-banner"></div>
 
-<div class="app-body">
-{body_html}
-</div>
+    <div class="app-body">
+    {body_html}
+    </div>
 
-<div class="app-footer">
-  compta_python — vue générée localement
-  <a href="#" onclick="return restartApp()">Redémarrer l'application</a>
+    <div class="app-footer">
+      compta_python — vue générée localement
+    </div>
+  </div>
 </div>
 
 <script>

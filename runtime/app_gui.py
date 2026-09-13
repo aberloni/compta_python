@@ -26,7 +26,7 @@ RUNTIME_DIR = os.path.dirname(os.path.abspath(__file__))
 VIEW_DIR = os.path.abspath(os.path.join(RUNTIME_DIR, "..", "exports", "view"))
 HOMEPAGE_PATH = os.path.join(VIEW_DIR, "homepage.html")
 
-SCRIPT_BY_PAGE = {file: script for file, _label, script in PAGES}
+SCRIPT_BY_PAGE = {file: script for file, _label, script, _is_edit in PAGES}
 
 
 def _run_script(script_name):
@@ -169,6 +169,116 @@ class Api:
             print(f"✗ import — conflit ({result.get('existing_fraction')} existant)")
         else:
             print(f"✓ import — {'déjà présent' if result.get('skipped') else 'ajouté'}")
+        return result
+
+    def update_bill_range(self, project_uid, bill_uid, new_start, new_end):
+        """Rewrite one existing bill's start/end period -- called by the
+        Éditer les factures page's per-row "Enregistrer" button."""
+        print(f"→ update bill {project_uid}/{bill_uid} → {new_start}..{new_end}")
+        try:
+            from tools.bill_editor import update_bill_range
+            result = update_bill_range(project_uid, bill_uid, new_start, new_end)
+        except Exception as e:
+            print(f"✗ update bill — {e}")
+            return {"ok": False, "error": str(e)}
+        print("✓ update bill" if result.get("ok") else f"✗ update bill — {result.get('error')}")
+        return result
+
+    def add_bill(self, project_uid, bill_uid, start, end):
+        """Append a new bill for a project -- called by the Éditer les
+        factures page's "Ajouter une facture" form."""
+        print(f"→ add bill {project_uid}/{bill_uid} → {start}..{end}")
+        try:
+            from tools.bill_editor import add_bill
+            result = add_bill(project_uid, bill_uid, start, end)
+        except Exception as e:
+            print(f"✗ add bill — {e}")
+            return {"ok": False, "error": str(e)}
+        print("✓ add bill" if result.get("ok") else f"✗ add bill — {result.get('error')}")
+        return result
+
+    def delete_bill(self, project_uid, bill_uid):
+        """Delete one bill -- called by the Éditer les factures page's
+        per-row "Supprimer" button. Refuses if a wire is already linked to
+        it (see tools/bill_editor.py: delete_bill())."""
+        print(f"→ delete bill {project_uid}/{bill_uid}")
+        try:
+            from tools.bill_editor import delete_bill
+            result = delete_bill(project_uid, bill_uid)
+        except Exception as e:
+            print(f"✗ delete bill — {e}")
+            return {"ok": False, "error": str(e)}
+        print("✓ delete bill" if result.get("ok") else f"✗ delete bill — {result.get('error')}")
+        return result
+
+    def add_wire(self, client_uid, date, amount, bill_fuid=""):
+        """Append a new received wire transfer -- called by the Virements
+        page's "Ajouter un virement" form."""
+        print(f"→ add wire {client_uid} {date} {amount}{' → ' + bill_fuid if bill_fuid else ''}")
+        try:
+            from tools.wire_editor import add_wire
+            result = add_wire(client_uid, date, amount, bill_fuid)
+        except Exception as e:
+            print(f"✗ add wire — {e}")
+            return {"ok": False, "error": str(e)}
+        print("✓ add wire" if result.get("ok") else f"✗ add wire — {result.get('error')}")
+        return result
+
+    def associate_wire(self, filename, line_no, bill_fuid):
+        """Set or clear a wire's bill association -- called by the Virements
+        page's per-row "Associer" control."""
+        print(f"→ associate wire {filename}:{line_no} → {bill_fuid or '(aucune)'}")
+        try:
+            from tools.wire_editor import associate_wire
+            result = associate_wire(filename, line_no, bill_fuid)
+        except Exception as e:
+            print(f"✗ associate wire — {e}")
+            return {"ok": False, "error": str(e)}
+        print("✓ associate wire" if result.get("ok") else f"✗ associate wire — {result.get('error')}")
+        return result
+
+    def update_client(self, uid, name, address, creditor="", country="", tva="", color=""):
+        """Update one client's info -- called by the Clients page's per-row
+        "Enregistrer" button."""
+        print(f"→ update client {uid}")
+        try:
+            from tools.client_editor import update_client
+            result = update_client(uid, name, address, creditor, country, tva, color)
+        except Exception as e:
+            print(f"✗ update client — {e}")
+            return {"ok": False, "error": str(e)}
+        print("✓ update client" if result.get("ok") else f"✗ update client — {result.get('error')}")
+        return result
+
+    def add_client(self, uid, name, address, creditor="", country="", tva="", color=""):
+        """Create a new client -- called by the Clients page's "Ajouter un
+        client" form."""
+        print(f"→ add client {uid}")
+        try:
+            from tools.client_editor import add_client
+            result = add_client(uid, name, address, creditor, country, tva, color)
+        except Exception as e:
+            print(f"✗ add client — {e}")
+            return {"ok": False, "error": str(e)}
+        print("✓ add client" if result.get("ok") else f"✗ add client — {result.get('error')}")
+        return result
+
+    def generate_bill_pdf(self, project_uid, bill_uid):
+        """Generate (or regenerate) one bill's PDF on demand and open it --
+        called by the Éditer les factures page's per-row "PDF" button."""
+        print(f"→ generate pdf {project_uid}/{bill_uid}")
+        try:
+            from tools.bill_pdf import generate_bill_pdf
+            result = generate_bill_pdf(project_uid, bill_uid)
+        except Exception as e:
+            print(f"✗ generate pdf — {e}")
+            return {"ok": False, "error": str(e)}
+        if result.get("ok"):
+            print(f"✓ generate pdf — {result.get('path')}")
+            if hasattr(os, "startfile"):
+                os.startfile(result["path"])
+        else:
+            print(f"✗ generate pdf — {result.get('error')}")
         return result
 
     def restart(self):

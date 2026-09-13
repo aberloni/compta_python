@@ -15,11 +15,15 @@ import os
 class Wire:
     """One received bank transfer."""
 
-    def __init__(self, client_uid, date_str, amount, bill_fuid=None):
+    def __init__(self, client_uid, date_str, amount, bill_fuid=None, source_file=None, line_no=None):
         self.client_uid = client_uid.strip().lower()
         self.date = datetime.strptime(date_str.strip(), "%Y-%m-%d")
         self.amount = float(amount.strip())
         self.bill_fuid = bill_fuid.strip() if bill_fuid else None
+        # location of the line this wire was parsed from -- lets an editor
+        # rewrite that exact line without guessing which one matched
+        self.source_file = source_file
+        self.line_no = line_no
 
 
 class Wiring:
@@ -33,7 +37,7 @@ class Wiring:
         files = Path.getAllFilesFromDbType(DatabaseType.wiring)
         for f in files:
             lines = open(f, encoding="utf-8").read().splitlines()
-            for line in lines:
+            for line_no, line in enumerate(lines):
                 line = line.strip()
                 if not line or line.startswith("#"):
                     continue
@@ -42,7 +46,7 @@ class Wiring:
                     print(f"wiring: skipping malformed line: {line!r}")
                     continue
                 bill_fuid = parts[3] if len(parts) >= 4 else None
-                self.wires.append(Wire(parts[0], parts[1], parts[2], bill_fuid))
+                self.wires.append(Wire(parts[0], parts[1], parts[2], bill_fuid, source_file=f, line_no=line_no))
 
     def total_received(self, client_uid):
         """Return total TTC received for a given client uid."""

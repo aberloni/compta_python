@@ -15,6 +15,7 @@ class Client:
 
         self.uid = self.assoc.filterKey("uid")
         self.name = self.assoc.filterKey("name")
+        self.address = self.assoc.filterKey("address")
         self.creditor = self.assoc.filterKey("creditor")
         self.country = (self.assoc.filterKey("country") or "FR").upper()
         self.tva_number = self.assoc.filterKey("tva")
