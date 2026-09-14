@@ -50,6 +50,14 @@ NAV_CSS = """
              width: 190px; padding: 16px 10px; background: #1c1c1c;
              position: sticky; top: 0; align-self: flex-start; height: 100vh;
              overflow-y: auto; box-sizing: border-box; z-index: 1000; }
+  .app-logo { display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+              margin-bottom: 8px; border-radius: 6px; text-decoration: none;
+              cursor: pointer; transition: background .15s; }
+  .app-logo:hover { background: #333; }
+  .app-logo.active { background: #fff; }
+  .app-logo svg { flex-shrink: 0; }
+  .app-logo-text { color: #fff; font-size: 16px; font-weight: 600; letter-spacing: .3px; }
+  .app-logo.active .app-logo-text { color: #1c1c1c; }
   .app-nav a { display: block; color: #aaa; text-decoration: none; font-size: 13px;
                padding: 9px 12px; border-radius: 6px;
                transition: background .15s, color .15s; }
@@ -171,6 +179,30 @@ function sortTableByColumn(tbody, colIndex, headers, clickedTh, forcedDir) {
 }
 """
 
+APP_LOGO_SVG = """<svg width="28" height="28" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="200" height="200" rx="42" fill="#1c1c1c"/>
+  <g transform="translate(38,38)" fill="#e8e8e8" opacity="0.9">
+    <circle r="8"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(45)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(90)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(135)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(180)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(225)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(270)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(315)"/>
+  </g>
+  <rect x="66" y="50" width="84" height="114" rx="8" fill="#cfcfcf"/>
+  <rect x="56" y="40" width="84" height="114" rx="8" fill="#ffffff"/>
+  <rect x="70" y="60" width="40" height="8" rx="4" fill="#1c1c1c" opacity="0.85"/>
+  <rect x="70" y="78" width="48" height="5" rx="2.5" fill="#1c1c1c" opacity="0.35"/>
+  <rect x="70" y="90" width="36" height="5" rx="2.5" fill="#1c1c1c" opacity="0.35"/>
+  <rect x="70" y="102" width="42" height="5" rx="2.5" fill="#1c1c1c" opacity="0.35"/>
+  <rect x="70" y="114" width="30" height="5" rx="2.5" fill="#1c1c1c" opacity="0.35"/>
+  <circle cx="140" cy="150" r="27" fill="#4caf50"/>
+  <text x="140" y="151" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="central">&#8364;</text>
+</svg>"""
+
 NAV_SCRIPT = """
 function restartApp() {
   if (window.pywebview && window.pywebview.api) {
@@ -255,11 +287,11 @@ def render_shell(title, active_file, body_html, extra_style=""):
         active = ' class="active"' if f == active_file else ""
         return f'<a href="{f}" onclick="return navigateTo(\'{f}\')"{active}>{label}</a>'
 
-    nav_links = "".join(_link(f, label) for f, label, _script, is_edit in PAGES if f == "homepage.html")
-    nav_links += '<div class="nav-separator"></div>'
-    nav_links += "".join(_link(f, label) for f, label, _script, is_edit in PAGES if not is_edit and f != "homepage.html")
+    nav_links = "".join(_link(f, label) for f, label, _script, is_edit in PAGES if not is_edit and f != "homepage.html")
     nav_links += '<div class="nav-separator"></div>'
     nav_links += "".join(_link(f, label) for f, label, _script, is_edit in PAGES if is_edit)
+
+    logo_active = ' active' if active_file == "homepage.html" else ""
 
     return f"""<!DOCTYPE html>
 <html lang="fr">
@@ -275,6 +307,10 @@ def render_shell(title, active_file, body_html, extra_style=""):
 
 <div class="app-shell">
   <nav class="app-nav">
+    <a class="app-logo{logo_active}" href="homepage.html" onclick="return navigateTo('homepage.html')">
+      {APP_LOGO_SVG}
+      <span class="app-logo-text">compta</span>
+    </a>
     {nav_links}
     <span class="nav-spacer"></span>
     <div class="icon-row">

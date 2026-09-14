@@ -61,3 +61,5 @@ Simple list of changes, grouped by day.
 - The client address is now edited as two separate fields (street, city), instead of one field where you had to type the line-break character by hand.
 - The client country field now suggests countries by name as you type, instead of expecting you to already know the 2-letter code by heart.
 - Leaving a client's color field empty when adding or saving it now automatically picks a color no other client is already using, instead of leaving it uncolored.
+- Added a little app logo (an invoice with a euro coin and a gear) next to the app name, shown at the top of the navigation menu above the Accueil button.
+- Removed the separate "Accueil" button from the navigation menu — clicking the logo and app name at the top now goes to the home page instead.

@@ -1,10 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <rect x="0" y="0" width="200" height="200" rx="42" fill="#1c1c1c"/>
-  <rect x="56" y="38" width="88" height="120" rx="8" fill="#ffffff"/>
-  <rect x="72" y="60" width="48" height="9" rx="4" fill="#1c1c1c" opacity="0.85"/>
-  <rect x="72" y="80" width="56" height="6" rx="3" fill="#1c1c1c" opacity="0.35"/>
-  <rect x="72" y="94" width="42" height="6" rx="3" fill="#1c1c1c" opacity="0.35"/>
-  <rect x="72" y="108" width="50" height="6" rx="3" fill="#1c1c1c" opacity="0.35"/>
-  <circle cx="146" cy="146" r="26" fill="#4caf50"/>
-  <path d="M134 146 L143 155 L160 136" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g transform="translate(38,38)" fill="#e8e8e8" opacity="0.9">
+    <circle r="8"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(45)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(90)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(135)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(180)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(225)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(270)"/>
+    <rect x="-2" y="-14" width="4" height="6" rx="1" transform="rotate(315)"/>
+  </g>
+
+  <rect x="66" y="50" width="84" height="114" rx="8" fill="#cfcfcf"/>
+  <rect x="56" y="40" width="84" height="114" rx="8" fill="#ffffff"/>
+  <rect x="70" y="60" width="40" height="8" rx="4" fill="#1c1c1c" opacity="0.85"/>
+  <rect x="70" y="78" width="48" height="5" rx="2.5" fill="#1c1c1c" opacity="0.35"/>
+  <rect x="70" y="90" width="36" height="5" rx="2.5" fill="#1c1c1c" opacity="0.35"/>
+  <rect x="70" y="102" width="42" height="5" rx="2.5" fill="#1c1c1c" opacity="0.35"/>
+  <rect x="70" y="114" width="30" height="5" rx="2.5" fill="#1c1c1c" opacity="0.35"/>
+
+  <circle cx="140" cy="150" r="27" fill="#4caf50"/>
+  <text x="140" y="151" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="central">&#8364;</text>
 </svg>
