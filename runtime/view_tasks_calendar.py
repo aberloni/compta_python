@@ -248,6 +248,7 @@ let lastRows = [];
 let showIgnored = false;
 
 function rowClass(r) {
+  if (r.local === 'missing') return 'cal-local-missing';
   if (r.status === 'UNMATCHED') return 'cal-unmatched';
   if (r.status === 'ignored') return 'cal-ignored';
   if (r.local === 'conflict') return 'cal-local-conflict';
@@ -267,6 +268,7 @@ function toggleShowIgnored() {
 }
 
 function rowAction(r, i) {
+  if (r.local === 'missing') return '<span class="cal-missing-label">Absent du calendrier</span>';
   if (r.local === 'match') return '<span class="cal-local-label">Déjà présent</span>';
   if (r.local === 'conflict') return '<button class="cal-row-import cal-row-replace" onclick="return importRow(' + i + ')">Remplacer</button>';
   if (r.local === 'new') return '<button class="cal-row-import" onclick="return importRow(' + i + ')">Importer</button>';
@@ -279,7 +281,7 @@ function renderRows() {
     const hiddenAttr = (isGrayed(r) && !showIgnored) ? ' hidden' : '';
     return '<tr class="' + rowClass(r) + '"' + hiddenAttr + '>' +
       '<td>' + r.date + ' (' + r.weekday + ')</td>' +
-      '<td>' + escHtml(r.title) + '</td>' +
+      '<td>' + (r.title ? escHtml(r.title) : '—') + '</td>' +
       '<td>' + (r.uid || '?') + '</td>' +
       '<td class="num">' + r.fraction + '</td>' +
       '<td>' + r.status + '</td>' +
@@ -289,8 +291,12 @@ function renderRows() {
 
   const banner = document.getElementById('cal-conflict-banner');
   const conflicts = lastRows.filter(function (r) { return r.local === 'conflict'; }).length;
-  if (conflicts > 0) {
-    banner.textContent = conflicts + ' différence(s) à traiter';
+  const missing = lastRows.filter(function (r) { return r.local === 'missing'; }).length;
+  if (conflicts + missing > 0) {
+    const parts = [];
+    if (conflicts) parts.push(conflicts + ' valeur(s) différente(s)');
+    if (missing) parts.push(missing + ' absente(s) du calendrier');
+    banner.textContent = (conflicts + missing) + ' différence(s) à traiter : ' + parts.join(', ');
     banner.style.display = '';
   } else {
     banner.style.display = 'none';
@@ -331,7 +337,10 @@ function loadCalendarPreview() {
     renderRows();
     updateImportAllVisibility();
     const unmatched = lastRows.filter(function (r) { return r.status === 'UNMATCHED'; }).length;
-    summary.textContent = lastRows.length + ' événement(s) — ' + unmatched + ' non résolu(s)';
+    const missing = lastRows.filter(function (r) { return r.local === 'missing'; }).length;
+    let text = (lastRows.length - missing) + ' événement(s) — ' + unmatched + ' non résolu(s)';
+    if (missing) text += ' — ' + missing + ' entrée(s) locale(s) absente(s) du calendrier';
+    summary.textContent = text;
   });
   return false;
 }
@@ -434,6 +443,9 @@ page_style = """
   .tab-btn:hover { background: #f0f0f0; }
   .tab-btn.active { background: #222; color: #fff; border-color: #222; }
   .tab-btn.disabled { opacity: .3; pointer-events: none; }
+  #open-task-file-btn { margin-left: auto; padding: 6px 14px; border: none; border-radius: 20px;
+                         background: #222; color: #fff; cursor: pointer; font-size: 12px; font-weight: 600; }
+  #open-task-file-btn:hover { background: #444; }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
@@ -497,7 +509,9 @@ page_style = """
   tr.cal-ignored td { color: #bbb; }
   tr.cal-local-match td { background: #eaf7ea; }
   tr.cal-local-conflict td { background: #fff1e0; }
+  tr.cal-local-missing td { background: #e8f1fb; }
   .cal-local-label { color: #4a8a4a; font-size: 11px; font-weight: 600; }
+  .cal-missing-label { color: #2f6db5; font-size: 11px; font-weight: 600; }
   #cal-preview-btn, #cal-import-all-btn { padding: 7px 16px; border: none; border-radius: 20px;
                       background: #222; color: #fff; cursor: pointer; font-size: 12px;
                       font-weight: 600; }
@@ -523,7 +537,7 @@ body_content = f"""
 <div class="meta">Généré le {generated_at}</div>
 
 <div class="tabs-nav">{months_nav}</div>
-<div class="tabs-nav">{years_nav}</div>
+<div class="tabs-nav">{years_nav}<button id="open-task-file-btn" onclick="return openTaskFile()">Ouvrir {sel_year}-{sel_month:02d}.task</button></div>
 
 {tabs_content}
 
@@ -587,7 +601,20 @@ function render() {{
     }}
   }}
 
+  document.getElementById('open-task-file-btn').textContent = 'Ouvrir ' + ym + '.task';
+
   resetCalendarPreview();
+}}
+
+function openTaskFile() {{
+  if (!(window.pywebview && window.pywebview.api)) {{
+    alert("Indisponible en dehors de l'application.");
+    return false;
+  }}
+  window.pywebview.api.open_task_file(activeYm()).then(function (result) {{
+    if (!result || !result.ok) alert('Ouverture impossible : ' + (result && result.error || '?'));
+  }});
+  return false;
 }}
 
 function selectYear(y) {{

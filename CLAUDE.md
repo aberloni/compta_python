@@ -20,6 +20,8 @@ database/
   tasks/        ← tasks_{YYYY-MM}.compta
   bills/        ← bills_{projectUid}.compta
   wiring/       ← {*}.wire — received bank transfers, matched to bills
+  tva/          ← {YYYY}.tva — TVA declarations actually filed (monthly)
+  urssaf/       ← {YYYY}.urssaf — URSSAF declarations actually filed (quarterly)
   releves/      ← bank statement exports
 exports/
   billings/     ← generated HTML, PDF, .dump
@@ -137,8 +139,24 @@ label:Custom prestation label
 designation:Subtitle text
 frais:Description,150,2               ← additional line: label, unit price, qty
 ```
-Multiple bills per file, one block per bill date. Period start/end accept `YYYY-MM-DD`, `YYYY-MM` (→ 1st/last day of month), or `YYYY` (→ Jan 1/Dec 31). The bill date itself (before the `:`) still requires the full `YYYY-MM-DD`.
+Multiple bills per file, one block per bill date.
 
+### tva/{YYYY}.tva — TVA declarations filed
+```
+# annee-periode=declaration
+2026-1=3880
+2026-4=0
+```
+One line per monthly declaration: `YYYY-M=HT`, where the value is the **HT amount declared** for that month (monthly declarations). The month may be zero-padded (`2026-01`). `0` = déclaration néant: nothing received, but still declared. If a month appears twice, the last line wins. Parsed by `packages/database/declarations.py → TvaDeclarations`.
+`view_tva.py` shows the declared HT next to the HT computed from payments received (1 € tolerance). Each month is marked "✓ déclaré", "⚠ écart", "à déclarer" (any past month not declared, including zero months: "néant") or "mois en cours". "Reste à déclarer" = TVA of months not yet declared. Period start/end accept `YYYY-MM-DD`, `YYYY-MM` (→ 1st/last day of month), or `YYYY` (→ Jan 1/Dec 31). The bill date itself (before the `:`) still requires the full `YYYY-MM-DD`.
+
+
+### urssaf/{YYYY}.urssaf — URSSAF declarations filed
+```
+# annee-trimestre=declaration (HT déclaré à l'URSSAF)
+2026-1=13475            ← T1 = janv-mars (2 = avr-juin, 3 = juil-sept, 4 = oct-déc)
+```
+Same syntax and rules as `tva/`, with N = quarter (1-4): `YYYY-T=HT`, the HT declared for that quarter (cotisations + CFP + versement libératoire are declared together). Parsed by `declarations.py → UrssafDeclarations` (key `YYYY-Tn`). `view_trimester.py` shows it next to the HT computed per quarter, with the same statuses, and "Reste à déclarer" = charges of quarters not yet declared.
 ---
 
 ## Bill UID
@@ -195,6 +213,7 @@ Run from `runtime/` directory.
 1. Resolve `bill.getFullUid()`
 2. `generateHtml()` → writes `.html` to `exports/billings/`
 3. `HTML(path).write_pdf()` via **WeasyPrint** → writes `.pdf`
+4. `export_folders.copy_to("pdf", pdfPath)` copies the PDF to the extra "pdf" folders set on the Sauvegarde page (`modules/export_folders.py`, stored in gitignored `runtime/backup_folders.conf`). Backup zips work the same way with the "zip" group.
 
 CSS is embedded inline from `runtime/css.css`. **Single-page layout — all bills must fit on one page.**
 

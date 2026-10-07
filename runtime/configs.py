@@ -16,6 +16,8 @@ DB_EXTENSIONS = {
     "creditors": ".cred",
     "statements":".csv",
     "wiring":    ".wire",
+    "tva":       ".tva",
+    "urssaf":    ".urssaf",
 }
 
 # ─── settings ─────────────────────────────────────────────────────────────────

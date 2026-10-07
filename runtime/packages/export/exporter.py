@@ -4,6 +4,7 @@ import configs
 
 from packages.export.htmlFormater import *
 from modules.path import Path
+from modules import export_folders
 
 try:
     from weasyprint import HTML
@@ -30,7 +31,9 @@ def exportBills(project, exportDateRange):
 
 
 def exportBill(project, bill):
-    """Generate HTML (and PDF if creatPdf) for a single bill. Writes to exports/billings/."""
+    """Generate HTML (and PDF if creatPdf) for a single bill. Writes to exports/billings/,
+    then copies the PDF to the extra "pdf" folders of the Sauvegarde page
+    (modules/export_folders.py). Returns that copy result, None if no PDF was made."""
     _billFuid = bill.getFullUid()
 
     if _billFuid == None:
@@ -64,6 +67,8 @@ def exportBill(project, bill):
 
     # generate PDF
     if configs.creatPdf:
-        HTML(htmlPath).write_pdf(exportPath+billFileName+".pdf")
+        pdfPath = exportPath+billFileName+".pdf"
+        HTML(htmlPath).write_pdf(pdfPath)
         os.remove(htmlPath)
+        return export_folders.copy_to("pdf", pdfPath)
 

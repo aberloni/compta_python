@@ -6,8 +6,11 @@ paiement a été reçu (encaissements). On croise donc les factures avec les
 virements du wiring pour répartir la TVA de chaque facture sur le(s) mois
 où son paiement a effectivement été reçu (au prorata en cas de paiement partiel).
 
+Les déclarations effectivement faites (HT déclaré par mois) sont lues depuis
+database/tva/*.tva (voir packages/database/declarations.py) et comparées au HT encaissé.
+
 2 tables:
-  1. TVA par mois (à déclarer)
+  1. TVA par mois (à déclarer) + HT déclaré et état de la déclaration
   2. Détail des encaissements (facture -> virement -> part de TVA)
 """
 
@@ -34,12 +37,14 @@ from collections import defaultdict
 import configs
 from packages.database.database import Database
 from packages.database.wiring import Wiring
+from packages.database.declarations import TvaDeclarations
 from modules.layout import render_shell
 
 # ─── load ─────────────────────────────────────────────────────────────────────
 
 db = Database.init_billing()
 wiring = Wiring()
+tva_decls = TvaDeclarations()
 
 known_uids  = {c.uid for c in db.clients}
 known_wires = [w for w in wiring.wires if w.client_uid in known_uids]
@@ -122,21 +127,44 @@ def _all_months(months):
             y += 1
 
 current_month = datetime.now().strftime("%Y-%m")
+current_year = datetime.now().year
+
+# ─── déclarations faites vs HT encaissé ───────────────────────────────────────
+# the HT declared each month (database/tva/*.tva) is compared to the HT
+# computed above. Declared amounts may be rounded to the euro, hence the
+# tolerance. Every past month must be declared, even with nothing received
+# ("déclaration néant", declared as 0).
+
+TOLERANCE = 1.0
+ZERO = {"ht": 0.0, "tva": 0.0, "ttc": 0.0}
+declared = tva_decls.ht_by_period
+
+def declaration_cell(m, d):
+    cls, label = tva_decls.status(m, d["ht"], current_month, TOLERANCE)
+    return f'<span class="{cls}">{label}</span>'
 
 month_rows = ""
 total_ht = total_tva = total_ttc = 0.0
-for m in _all_months(set(by_month.keys()) | {current_month}):
-    d = by_month.get(m, {"ht": 0.0, "tva": 0.0, "ttc": 0.0})
+undeclared_tva = 0.0
+for m in _all_months(set(by_month.keys()) | set(declared.keys()) | {current_month}):
+    d = by_month.get(m, ZERO)
     total_ht  += d["ht"]
     total_tva += d["tva"]
     total_ttc += d["ttc"]
+    if m not in declared:
+        undeclared_tva += d["tva"]
     empty_cls = " empty-month" if m not in by_month else ""
+    declared_cell = fmt(declared[m]) if m in declared else ""
     month_rows += f"""<tr class="{empty_cls}">
       <td>{m}</td>
       <td class="num">{fmt(d['ht'])}</td>
       <td class="num tva">{fmt(d['tva'])}</td>
       <td class="num">{fmt(d['ttc'])}</td>
+      <td class="num declared">{declared_cell}</td>
+      <td>{declaration_cell(m, d)}</td>
     </tr>"""
+
+total_declared = sum(declared.values())
 
 if month_rows:
     month_rows += f"""<tr class="total-row">
@@ -144,6 +172,8 @@ if month_rows:
       <td class="num">{fmt(total_ht)}</td>
       <td class="num tva">{fmt(total_tva)}</td>
       <td class="num">{fmt(total_ttc)}</td>
+      <td class="num declared">{fmt(total_declared)}</td>
+      <td></td>
     </tr>"""
 
 # ─── table 2 : détail des encaissements ────────────────────────────────────────
@@ -165,11 +195,16 @@ for w_date, month, client_name, fuid, project_name, ht, tva, ttc in details:
 
 summary = f"""<div class="cards">
   {card("HT encaissé", fmt(total_ht))}
-  {card("TVA à déclarer", fmt(total_tva), "card-due")}
+  {card("TVA encaissée", fmt(total_tva))}
   {card("TTC encaissé", fmt(total_ttc))}
+  {card("HT déclaré", fmt(total_declared))}
+  {card("Reste à déclarer", fmt(undeclared_tva), "card-due")}
 </div>"""
 
 # ─── assemble ─────────────────────────────────────────────────────────────────
+
+# espace professionnel impots.gouv, where the monthly TVA declaration is filed
+DECLARATION_URL = "https://cfspro.impots.gouv.fr/mire/accueil.do"
 
 generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
 
@@ -178,6 +213,14 @@ page_style = """
   body { font-family: system-ui, sans-serif; font-size: 14px; background: #f5f5f5; color: #222; }
   h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
   .meta { color: #888; font-size: 12px; margin-bottom: 24px; }
+  .page-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .ext-btn { margin-left: auto; padding: 7px 16px; border-radius: 16px; background: #222; color: #fff;
+             font-size: 13px; font-weight: 600; text-decoration: none; }
+  .ext-btn:hover { background: #444; }
+  .file-btn { margin-left: auto; padding: 7px 16px; border: 1px solid #ddd; border-radius: 16px;
+              background: #fff; color: #222; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .file-btn:hover { background: #f0f0f0; }
+  .file-btn + .ext-btn { margin-left: 0; }
   h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
         color: #999; margin: 32px 0 10px; }
 
@@ -201,18 +244,29 @@ page_style = """
   .empty-month .tva { color: #ddd; }
   .total-row td { font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }
   .empty { color: #bbb; font-style: italic; }
+
+  .decl-ok   { color: #2e7d32; font-weight: 600; }
+  .decl-gap  { color: #e65100; font-weight: 600; }
+  .decl-due  { color: #c62828; font-weight: 600; }
+  .decl-none { color: #bbb; }
+  .declared { color: #555; }
 """
 
 body_content = f"""
-<h1>TVA à déclarer</h1>
+<div class="page-head">
+  <h1>TVA à déclarer</h1>
+  <button class="file-btn" onclick="return openTvaFile()">Ouvrir {current_year}.tva</button>
+  <!-- target="_blank": pywebview opens it in the default browser instead of navigating the app window away -->
+  <a class="ext-btn" href="{DECLARATION_URL}" target="_blank" rel="noopener" title="{DECLARATION_URL}">Déclarer sur impots.gouv ↗</a>
+</div>
 <div class="meta">Généré le {generated_at} · basé sur les encaissements (paiements reçus)</div>
 
 {summary}
 
 <h2>Par mois</h2>
 <table data-default-sort="0:asc">
-  <thead>{th("Mois", "HT", "TVA", "TTC")}</thead>
-  <tbody>{month_rows or '<tr><td colspan="4" class="empty">Aucun encaissement</td></tr>'}</tbody>
+  <thead>{th("Mois", "HT", "TVA", "TTC", "HT déclaré", "Déclaration")}</thead>
+  <tbody>{month_rows or '<tr><td colspan="6" class="empty">Aucun encaissement</td></tr>'}</tbody>
 </table>
 
 <h2>Détail des encaissements</h2>
@@ -220,6 +274,19 @@ body_content = f"""
   <thead>{th("Date virement", "Mois", "Facture", "Client", "Projet", "HT", "TVA", "TTC")}</thead>
   <tbody>{detail_rows or '<tr><td colspan="8" class="empty">Aucun encaissement</td></tr>'}</tbody>
 </table>
+
+<script>
+function openTvaFile() {{
+  if (!(window.pywebview && window.pywebview.api)) {{
+    alert("Indisponible en dehors de l'application.");
+    return false;
+  }}
+  window.pywebview.api.open_declaration_file('tva', {current_year}).then(function (result) {{
+    if (!result || !result.ok) alert('Ouverture impossible : ' + (result && result.error || '?'));
+  }});
+  return false;
+}}
+</script>
 """
 
 html = render_shell("TVA view", "tva.html", body_content, page_style)
@@ -237,7 +304,9 @@ print(f"\n── tva ──")
 for m in sorted(by_month):
     d = by_month[m]
     print(f"{m} >> HT : {d['ht']:g} | TVA : {d['tva']:g} | TTC : {d['ttc']:g}")
-print(f"\nTotal TVA à déclarer : {total_tva:.2f} €")
+print(f"\nTotal TVA encaissée : {total_tva:.2f} €")
+print(f"HT déclaré          : {total_declared:.2f} € ({len(declared)} mois)")
+print(f"Reste à déclarer    : {undeclared_tva:.2f} €")
 print(f"view @ {out_path}")
 
 if hasattr(os, "startfile") and not configs.webview_mode:

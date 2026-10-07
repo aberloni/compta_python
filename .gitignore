@@ -6,3 +6,6 @@ __*
 database/
 database/
 externals/
+
+runtime/backup_folders.conf
+runtime/backup_state.conf

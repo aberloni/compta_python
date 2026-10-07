@@ -8,8 +8,12 @@ appliqués sont ceux en vigueur à la date de ce virement (voir database/infos/i
 
 T1 = jan-mar, T2 = avr-jun, T3 = jul-sep, T4 = oct-dec.
 
+Les déclarations URSSAF effectivement faites (HT déclaré par trimestre) sont
+lues depuis database/urssaf/*.urssaf (voir packages/database/declarations.py)
+et comparées au HT encaissé.
+
 2 tables:
-  1. Charges par trimestre (à payer)
+  1. Charges par trimestre (à payer) + HT déclaré et état de la déclaration
   2. Détail des encaissements (facture -> virement -> trimestre)
 """
 
@@ -37,6 +41,7 @@ import configs
 from packages.database.database import Database
 from packages.database.wiring import Wiring
 from packages.database.impots import Impots
+from packages.database.declarations import UrssafDeclarations
 from modules.layout import render_shell
 
 # ─── load ─────────────────────────────────────────────────────────────────────
@@ -44,6 +49,7 @@ from modules.layout import render_shell
 db = Database.init_billing()
 wiring = Wiring()
 impots = Impots()
+urssaf_decls = UrssafDeclarations()
 
 known_uids  = {c.uid for c in db.clients}
 known_wires = [w for w in wiring.wires if w.client_uid in known_uids]
@@ -138,16 +144,29 @@ def _all_trimesters(trims):
 
 _empty_trim = {"ht": 0.0, "cotisations": 0.0, "cfp": 0.0, "liberatoire": 0.0, "total": 0.0}
 
+# HT declared to URSSAF each quarter (database/urssaf/*.urssaf), compared to
+# the HT computed above -- same rules as the TVA tab's monthly declarations.
+current_trim = to_trimester(datetime.now())
+declared = urssaf_decls.ht_by_period
+
+def declaration_cell(t, d):
+    cls, label = urssaf_decls.status(t, d["ht"], current_trim)
+    return f'<span class="{cls}">{label}</span>'
+
 trim_rows = ""
 total_ht = total_cotisations = total_cfp = total_liberatoire = total_charges = 0.0
-for t in _all_trimesters(by_trim.keys()) if by_trim else []:
+undeclared_charges = 0.0
+for t in _all_trimesters(set(by_trim.keys()) | set(declared.keys()) | {current_trim}):
     d = by_trim.get(t, _empty_trim)
     total_ht          += d["ht"]
     total_cotisations += d["cotisations"]
     total_cfp         += d["cfp"]
     total_liberatoire += d["liberatoire"]
     total_charges     += d["total"]
+    if t not in declared:
+        undeclared_charges += d["total"]
     empty_cls = " empty-trim" if t not in by_trim else ""
+    declared_cell = fmt(declared[t]) if t in declared else ""
     trim_rows += f"""<tr class="{empty_cls}">
       <td>{t}</td>
       <td class="num">{fmt(d['ht'])}</td>
@@ -155,7 +174,11 @@ for t in _all_trimesters(by_trim.keys()) if by_trim else []:
       <td class="num">{fmt(d['cfp'])}</td>
       <td class="num">{fmt(d['liberatoire'])}</td>
       <td class="num charges">{fmt(d['total'])}</td>
+      <td class="num declared">{declared_cell}</td>
+      <td>{declaration_cell(t, d)}</td>
     </tr>"""
+
+total_declared = sum(declared.values())
 
 if trim_rows:
     trim_rows += f"""<tr class="total-row">
@@ -165,6 +188,8 @@ if trim_rows:
       <td class="num">{fmt(total_cfp)}</td>
       <td class="num">{fmt(total_liberatoire)}</td>
       <td class="num charges">{fmt(total_charges)}</td>
+      <td class="num declared">{fmt(total_declared)}</td>
+      <td></td>
     </tr>"""
 
 # ─── table 2 : détail des encaissements ────────────────────────────────────────
@@ -191,12 +216,18 @@ summary = f"""<div class="cards">
   {card("Cotisations", fmt(total_cotisations))}
   {card("CFP", fmt(total_cfp))}
   {card("Libératoire", fmt(total_liberatoire))}
-  {card("Total à payer", fmt(total_charges), "card-due")}
+  {card("Total charges", fmt(total_charges))}
+  {card("HT déclaré", fmt(total_declared))}
+  {card("Reste à déclarer", fmt(undeclared_charges), "card-due")}
 </div>"""
 
 # ─── assemble ─────────────────────────────────────────────────────────────────
 
+# espace auto-entrepreneur URSSAF, where the quarterly declaration is filed
+DECLARATION_URL = "https://www.autoentrepreneur.urssaf.fr/"
+
 generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+current_year = datetime.now().year
 
 page_style = """
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -226,18 +257,37 @@ page_style = """
   .empty-trim .charges { color: #ddd; }
   .total-row td { font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }
   .empty { color: #bbb; font-style: italic; }
+
+  .page-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .ext-btn { margin-left: auto; padding: 7px 16px; border-radius: 16px; background: #222; color: #fff;
+             font-size: 13px; font-weight: 600; text-decoration: none; }
+  .ext-btn:hover { background: #444; }
+  .file-btn { margin-left: auto; padding: 7px 16px; border: 1px solid #ddd; border-radius: 16px;
+              background: #fff; color: #222; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .file-btn:hover { background: #f0f0f0; }
+  .file-btn + .ext-btn { margin-left: 0; }
+  .declared { color: #555; }
+  .decl-ok   { color: #2e7d32; font-weight: 600; }
+  .decl-gap  { color: #e65100; font-weight: 600; }
+  .decl-due  { color: #c62828; font-weight: 600; }
+  .decl-none { color: #bbb; }
 """
 
 body_content = f"""
-<h1>Charges sociales à payer — par trimestre</h1>
+<div class="page-head">
+  <h1>Charges sociales à payer — par trimestre</h1>
+  <button class="file-btn" onclick="return openUrssafFile()">Ouvrir {current_year}.urssaf</button>
+  <!-- target="_blank": pywebview opens it in the default browser instead of navigating the app window away -->
+  <a class="ext-btn" href="{DECLARATION_URL}" target="_blank" rel="noopener" title="{DECLARATION_URL}">Déclarer sur l'URSSAF ↗</a>
+</div>
 <div class="meta">Généré le {generated_at} · cotisations + CFP + versement libératoire, basé sur les encaissements (paiements reçus)</div>
 
 {summary}
 
 <h2>Par trimestre</h2>
 <table data-default-sort="0:asc">
-  <thead><tr><th>Trimestre</th><th class="num">HT</th><th class="num">Cotisations</th><th class="num">CFP</th><th class="num">Libératoire</th><th class="num">Total à payer</th></tr></thead>
-  <tbody>{trim_rows or '<tr><td colspan="6" class="empty">Aucun encaissement</td></tr>'}</tbody>
+  <thead><tr><th>Trimestre</th><th class="num">HT</th><th class="num">Cotisations</th><th class="num">CFP</th><th class="num">Libératoire</th><th class="num">Total à payer</th><th class="num">HT déclaré</th><th>Déclaration</th></tr></thead>
+  <tbody>{trim_rows or '<tr><td colspan="8" class="empty">Aucun encaissement</td></tr>'}</tbody>
 </table>
 
 <h2>Détail des encaissements</h2>
@@ -245,6 +295,19 @@ body_content = f"""
   <thead>{th("Date virement", "Trimestre", "Facture", "Client", "Projet", "HT", "Cotisations", "CFP", "Libératoire", "Total")}</thead>
   <tbody>{detail_rows or '<tr><td colspan="10" class="empty">Aucun encaissement</td></tr>'}</tbody>
 </table>
+
+<script>
+function openUrssafFile() {{
+  if (!(window.pywebview && window.pywebview.api)) {{
+    alert("Indisponible en dehors de l'application.");
+    return false;
+  }}
+  window.pywebview.api.open_declaration_file('urssaf', {current_year}).then(function (result) {{
+    if (!result || !result.ok) alert('Ouverture impossible : ' + (result && result.error || '?'));
+  }});
+  return false;
+}}
+</script>
 """
 
 html = render_shell("Trimestre view", "trimester.html", body_content, page_style)
@@ -262,7 +325,9 @@ print(f"\n── trimestre ──")
 for t in sorted(by_trim):
     d = by_trim[t]
     print(f"{t} >> HT : {d['ht']:g} | Cotisations : {d['cotisations']:g} | CFP : {d['cfp']:g} | Libératoire : {d['liberatoire']:g} | Total : {d['total']:g}")
-print(f"\nTotal à payer : {total_charges:.2f} €")
+print(f"\nTotal charges    : {total_charges:.2f} €")
+print(f"HT déclaré       : {total_declared:.2f} € ({len(declared)} trimestre(s))")
+print(f"Reste à déclarer : {undeclared_charges:.2f} €")
 print(f"view @ {out_path}")
 
 if hasattr(os, "startfile") and not configs.webview_mode:

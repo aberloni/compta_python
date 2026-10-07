@@ -160,6 +160,11 @@ async function saveBillRange(btn) {
   return false;
 }
 
+function openPdfFolder() {
+  if (window.pywebview && window.pywebview.api) window.pywebview.api.open_export_folder('pdf');
+  return false;
+}
+
 async function generateBillPdf(btn) {
   const row = btn.closest('tr');
   const status = row.querySelector('.row-status');
@@ -175,8 +180,12 @@ async function generateBillPdf(btn) {
   const result = await window.pywebview.api.generate_bill_pdf(projectUid, billUid);
   btn.disabled = false;
   if (result && result.ok) {
-    status.textContent = 'PDF généré ✓';
-    status.className = 'row-status ok';
+    const copied = (result.copied || []).length, failed = result.failed || [];
+    let msg = 'PDF généré ✓';
+    if (copied + failed.length) msg += ', copié dans ' + copied + '/' + (copied + failed.length) + ' dossier(s)';
+    if (failed.length) msg += ' — échec : ' + failed.map(f => f.folder + ' (' + f.error + ')').join(', ');
+    status.textContent = msg;
+    status.className = 'row-status ' + (failed.length ? 'err' : 'ok');
   } else {
     status.textContent = 'Erreur : ' + (result && result.error || '?');
     status.className = 'row-status err';
@@ -280,6 +289,11 @@ page_style = """
   body { font-family: system-ui, sans-serif; font-size: 14px; background: #f5f5f5; color: #222; }
   h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
   .meta { color: #888; font-size: 12px; margin-bottom: 24px; }
+  .page-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .page-head h1 { margin-bottom: 0; }
+  .folder-btn { margin-left: auto; padding: 6px 14px; border: 1px solid #ddd; border-radius: 14px;
+                 background: #fff; cursor: pointer; font-size: 12px; font-weight: 600; color: #333; }
+  .folder-btn:hover { background: #f0f0f0; }
 
   /* tabs */
   .tabs-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 24px; }
@@ -361,7 +375,10 @@ page_style = """
 """
 
 body_content = f"""
-<h1>Éditer les factures</h1>
+<div class="page-head">
+  <h1>Éditer les factures</h1>
+  <button class="folder-btn" onclick="return openPdfFolder()" title="Ouvre exports/billings/, où les PDF des factures sont générés">Dossier des PDF</button>
+</div>
 <div class="meta">Généré le {generated_at} — les dates acceptent AAAA-MM-JJ, AAAA-MM ou AAAA</div>
 
 <div class="tabs-nav">{tabs_nav}</div>

@@ -1,6 +1,7 @@
 """
 Generate a single bill's PDF on demand -- used by the "Éditer les factures"
-page's per-row "PDF" button (see app_gui.py: generate_bill_pdf()).
+page's per-row "PDF" button (see app_gui.py: generate_bill_pdf()). The PDF is
+also copied to the extra "pdf" folders of the Sauvegarde page.
 """
 
 import os
@@ -31,7 +32,7 @@ def generate_bill_pdf(project_uid, bill_uid):
     previous_creatPdf = configs.creatPdf
     configs.creatPdf = True
     try:
-        exportBill(project, bill)
+        copies = exportBill(project, bill)
     finally:
         configs.creatPdf = previous_creatPdf
 
@@ -41,4 +42,4 @@ def generate_bill_pdf(project_uid, bill_uid):
     if not os.path.isfile(pdf_path):
         return {"ok": False, "error": "le PDF n'a pas été généré"}
 
-    return {"ok": True, "path": pdf_path}
+    return {"ok": True, "path": pdf_path, **(copies or {"copied": [], "failed": []})}

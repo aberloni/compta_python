@@ -7,7 +7,8 @@ Generate exports/view/wiring.html
   3. Virements hors clients connus
 
 Table 1 is editable: each row's "Facture" cell doubles as a form to
-associate/reassign/clear that wire's bill (saved via app_gui.py's
+associate/reassign/clear that wire's bill (its "Associer" button only shows
+once the field differs from the bill already saved; saved via app_gui.py's
 associate_wire(), targeting the exact source file + line number recorded on
 the Wire object -- see packages/database/wiring.py). A form at the top lets
 you record a new received wire (add_wire()).
@@ -81,8 +82,8 @@ for w in known_wires:
       <td>{name}</td>
       <td class="num">{fmt(w.amount)}</td>
       <td class="actions">
-        <input type="text" class="fuid-input" list="bill-fuids" placeholder="aucune" value="{w.bill_fuid or ''}">
-        <button class="save-btn" onclick="return associateWire(this)">Associer</button>
+        <input type="text" class="fuid-input" list="bill-fuids" placeholder="aucune" value="{w.bill_fuid or ''}" data-saved="{w.bill_fuid or ''}" oninput="onFuidInput(this)">
+        <button class="save-btn" onclick="return associateWire(this)" hidden>Associer</button>
         <span class="row-status"></span>
       </td>
     </tr>"""
@@ -281,6 +282,13 @@ async function reloadAfterEdit() {
   document.body.style.cursor = 'wait';
   try { await window.pywebview.api.run('wiring.html'); } catch (e) {}
   window.location.reload();
+}
+
+// "Associer" only shows once the typed bill differs from the one saved in the .wire file
+function onFuidInput(input) {
+  const row = input.closest('tr');
+  row.querySelector('.save-btn').hidden = input.value.trim() === input.dataset.saved;
+  row.querySelector('.row-status').textContent = '';
 }
 
 async function associateWire(btn) {

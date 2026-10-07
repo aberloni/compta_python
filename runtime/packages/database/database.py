@@ -16,7 +16,7 @@ from packages.database.creditor import Creditor
 from packages.database.statements import Statements
 
 # define : database enum
-DatabaseType = Enum('DatabaseType', ["bills", "infos", "clients", "projects", "tasks", "statements", "creditors", "wiring"])
+DatabaseType = Enum('DatabaseType', ["bills", "infos", "clients", "projects", "tasks", "statements", "creditors", "wiring", "tva", "urssaf"])
 
 class Database:
 

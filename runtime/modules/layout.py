@@ -26,6 +26,10 @@ table, in localStorage) and takes over as the ASC default on the next page
 open, overriding data-default-sort.
 """
 
+from html import escape
+
+from modules import backup_state
+
 # (filename, nav label, generating script, is_edit) — filename must match what
 # each view_*.py writes under exports/view/; script is the file app_gui.py
 # runs to (re)generate it. Order here is the order shown in each nav group.
@@ -41,6 +45,7 @@ PAGES = [
     ("clients.html",        "Clients",         "view_clients.py",       True),
     ("bills_edit.html",     "Éditer factures", "view_bills_edit.py",    True),
     ("wiring.html",         "Virements",       "view_wiring.py",        True),
+    ("backups.html",        "Sauvegarde",      "view_backups.py",       True),
 ]
 
 NAV_CSS = """
@@ -77,6 +82,7 @@ NAV_CSS = """
   .app-body { flex: 1; padding: 24px 32px; }
   .app-footer { padding: 16px 32px; color: #aaa; font-size: 11px;
                 text-align: center; border-top: 1px solid #e5e5e5; margin-top: 40px; }
+  .app-footer-extra { margin-top: 4px; color: #888; }
   .error-banner { display: none; background: #c62828; color: #fff;
                   padding: 10px 24px; font-size: 13px; font-weight: 600; }
 
@@ -89,8 +95,6 @@ NAV_CSS = """
   th.sortable-th.sort-asc .sort-arrow::after { content: '▲'; }
   th.sortable-th.sort-desc .sort-arrow::after { content: '▼'; }
 
-  .icon-toggle .spin { animation: icon-spin 1s linear infinite; }
-  @keyframes icon-spin { to { transform: rotate(360deg); } }
 """
 
 SORT_SCRIPT = """
@@ -210,28 +214,6 @@ function restartApp() {
   }
   return false;
 }
-const ICON_ARCHIVE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12.14l.81 1H5.12z"/></svg>';
-const ICON_SPINNER = '<svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>';
-const ICON_CHECK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>';
-const ICON_CROSS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.89 18.3 9.18 12 2.89 5.71 4.3 4.29l6.29 6.3 6.29-6.3z"/></svg>';
-function backupDatabase() {
-  if (!(window.pywebview && window.pywebview.api)) return false;
-  const btn = document.getElementById('backup-btn');
-  const revert = () => { btn.disabled = false; btn.innerHTML = ICON_ARCHIVE; btn.title = 'Exporter la base de données (zip)'; };
-  btn.disabled = true;
-  btn.innerHTML = ICON_SPINNER;
-  window.pywebview.api.backup_database().then(function (result) {
-    if (result && result.ok) {
-      btn.innerHTML = ICON_CHECK;
-      btn.title = 'Zip créé : ' + result.path;
-    } else {
-      btn.innerHTML = ICON_CROSS;
-      btn.title = 'Échec de l\\'export : ' + (result && result.error || '?');
-    }
-    setTimeout(revert, 2500);
-  });
-  return false;
-}
 function navigateTo(file) {
   if (window.pywebview && window.pywebview.api) {
     document.body.style.cursor = 'wait';
@@ -282,6 +264,10 @@ def render_shell(title, active_file, body_html, extra_style=""):
     body_html   -- the page's own content (h1, meta line, tables, tabs, its
                    own <script> block, etc.) — no outer html/head/body tags
     extra_style -- the page's own <style> rules (without the <style> tags)
+
+    The footer of every page also shows the latest saved/exported/imported
+    zip the data is based on (see modules/backup_state.py), linking to the
+    Sauvegarde page.
     """
     def _link(f, label):
         active = ' class="active"' if f == active_file else ""
@@ -292,6 +278,7 @@ def render_shell(title, active_file, body_html, extra_style=""):
     nav_links += "".join(_link(f, label) for f, label, _script, is_edit in PAGES if is_edit)
 
     logo_active = ' active' if active_file == "homepage.html" else ""
+    backup_text = escape(backup_state.summary_text(backup_state.baseline()))
 
     return f"""<!DOCTYPE html>
 <html lang="fr">
@@ -314,9 +301,6 @@ def render_shell(title, active_file, body_html, extra_style=""):
     {nav_links}
     <span class="nav-spacer"></span>
     <div class="icon-row">
-      <button id="backup-btn" class="icon-toggle" onclick="return backupDatabase()" title="Exporter la base de données (zip)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12.14l.81 1H5.12z"/></svg>
-      </button>
       <button id="auto-refresh-btn" class="icon-toggle active" onclick="toggleAutoRefresh()" title="Auto refresh : activé">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
       </button>
@@ -335,6 +319,7 @@ def render_shell(title, active_file, body_html, extra_style=""):
 
     <div class="app-footer">
       compta_python — vue générée localement
+      <div class="app-footer-extra">Dernière sauvegarde : <a href="backups.html" onclick="return navigateTo('backups.html')">{backup_text}</a></div>
     </div>
   </div>
 </div>

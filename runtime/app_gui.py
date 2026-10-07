@@ -12,19 +12,24 @@ doesn't exist yet. If a script fails, the page shows a red error banner
 """
 
 import os
+import re
 import subprocess
 import sys
 import threading
 import time
+from datetime import datetime
 
 import webview
 
 import do_zip_backup
+import do_zip_restore
+from modules import export_folders
 from modules.layout import PAGES
 
 RUNTIME_DIR = os.path.dirname(os.path.abspath(__file__))
 VIEW_DIR = os.path.abspath(os.path.join(RUNTIME_DIR, "..", "exports", "view"))
 HOMEPAGE_PATH = os.path.join(VIEW_DIR, "homepage.html")
+ZIP_FILE_TYPES = ("Archive zip (*.zip)",)
 
 SCRIPT_BY_PAGE = {file: script for file, _label, script, _is_edit in PAGES}
 
@@ -48,6 +53,23 @@ def _run_script(script_name):
     error = lines[-1] if lines else f"{script_name} a échoué (code {result.returncode})"
     print(f"✗ {script_name} — {error}")
     return error
+
+
+def _open_data_file(path, header):
+    """Open one database/ text file in the OS default editor, creating it
+    with `header` as its only content first if it doesn't exist yet."""
+    path = os.path.normpath(path)
+    print(f"→ open {path}")
+    try:
+        if not os.path.isfile(path):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(header)
+        os.startfile(path)
+    except Exception as e:
+        print(f"✗ open — {e}")
+        return {"ok": False, "error": str(e)}
+    return {"ok": True, "path": path}
 
 
 class Api:
@@ -88,19 +110,119 @@ class Api:
             self.run(filename)
 
     def backup_database(self):
-        """Zip database/ to exports/backups/ and open that folder, for the
-        navbar's zip button (see modules/layout.py)."""
+        """Zip database/ to exports/backups/ and copy it to every extra "zip"
+        folder, for the Sauvegarde page's "Sauvegarder maintenant" /
+        "Créer une sauvegarde" buttons (the page lists the zips itself).
+        A failed copy is reported in "failed", the backup itself still ok."""
         print("→ backup database (zip)")
         try:
-            zip_path = do_zip_backup.make_backup(open_folder=True)
+            zip_path = do_zip_backup.make_backup()
         except Exception as e:
             print(f"✗ backup — {e}")
             return {"ok": False, "error": str(e)}
         if zip_path is None:
             print("✗ backup — dossier database introuvable")
             return {"ok": False, "error": "dossier database introuvable"}
-        print(f"✓ backup — {zip_path}")
-        return {"ok": True, "path": zip_path}
+        copies = export_folders.copy_to("zip", zip_path)
+        print(f"✓ backup — {zip_path} (+{len(copies['copied'])} copie(s), {len(copies['failed'])} échec(s))")
+        return {"ok": True, "path": zip_path, **copies}
+
+    def export_database(self):
+        """Zip database/ to a location picked in a save dialog -- called by
+        the Sauvegarde page's "Exporter…" button."""
+        default_name = f"compta_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.zip"
+        picked = webview.windows[0].create_file_dialog(
+            webview.FileDialog.SAVE, save_filename=default_name, file_types=ZIP_FILE_TYPES,
+        )
+        if not picked:
+            return {"ok": False, "cancelled": True}
+        zip_path = picked if isinstance(picked, str) else picked[0]
+        print(f"→ export database → {zip_path}")
+        try:
+            count, uid, created = do_zip_backup.write_zip(zip_path, action="export")
+        except Exception as e:
+            print(f"✗ export — {e}")
+            return {"ok": False, "error": str(e)}
+        print(f"✓ export — {count} fichier(s), uid {uid}")
+        return {"ok": True, "path": zip_path, "files": count, "uid": uid,
+                "created": do_zip_restore.fmt_created(created)}
+
+    def pick_import_file(self):
+        """Open-file dialog for the Sauvegarde page's "Importer…" button.
+        Only picks + checks the zip; the page asks for confirmation before
+        calling import_database()."""
+        picked = webview.windows[0].create_file_dialog(
+            webview.FileDialog.OPEN, directory=do_zip_backup.BACKUPS_DIR, file_types=ZIP_FILE_TYPES,
+        )
+        if not picked:
+            return {"ok": False, "cancelled": True}
+        zip_path = picked if isinstance(picked, str) else picked[0]
+        check = do_zip_restore.inspect_zip(zip_path)
+        if not check["ok"]:
+            return check
+        return {"ok": True, "path": zip_path, "name": os.path.basename(zip_path),
+                "files": check["files"], "uid": check["uid"],
+                "created": do_zip_restore.fmt_created(check["created"])}
+
+    def import_database(self, zip_path):
+        """Replace database/ with zip_path's content (current one is zipped
+        to exports/backups/ first, see do_zip_restore.restore_zip())."""
+        print(f"→ import database ← {zip_path}")
+        try:
+            result = do_zip_restore.restore_zip(zip_path)
+        except Exception as e:
+            result = {"ok": False, "error": str(e)}
+        print(f"✓ import — {result['files']} fichier(s)" if result.get("ok") else f"✗ import — {result.get('error')}")
+        return result
+
+    def restore_backup(self, folder, name):
+        """Same as import_database() for one zip listed on the Sauvegarde
+        page -- called by its per-row "Restaurer" button. folder must be the
+        local backups folder or one of the extra "zip" folders."""
+        if not export_folders.is_known("zip", folder):
+            return {"ok": False, "error": f"dossier de sauvegarde inconnu : {folder}"}
+        if os.path.basename(name) != name or not name.lower().endswith(".zip"):
+            return {"ok": False, "error": f"nom de sauvegarde invalide : {name}"}
+        return self.import_database(os.path.join(folder, name))
+
+    def open_export_folder(self, group, folder=None):
+        """Open one folder of the Sauvegarde page's "Dossiers d'export" list
+        in the file explorer (the group's local folder is created if needed).
+        No folder = the group's local folder, e.g. open_export_folder("pdf")
+        for the Éditer les factures page's "Dossier des PDF" button."""
+        if group not in export_folders.GROUPS:
+            return
+        folder = folder or export_folders.local_folder(group)
+        if not export_folders.is_known(group, folder):
+            return
+        if export_folders.same_folder(folder, export_folders.local_folder(group)):
+            os.makedirs(folder, exist_ok=True)
+        if hasattr(os, "startfile") and os.path.isdir(folder):
+            os.startfile(os.path.normpath(folder))
+
+    def add_export_folder(self, group):
+        """Folder dialog for the Sauvegarde page's per-group "Ajouter un
+        dossier…" button -- adds an extra folder that group's exports are
+        copied to (and, for "zip", listed from)."""
+        if group not in export_folders.GROUPS:
+            return {"ok": False, "error": f"groupe inconnu : {group}"}
+        picked = webview.windows[0].create_file_dialog(webview.FileDialog.FOLDER)
+        if not picked:
+            return {"ok": False, "cancelled": True}
+        folder = picked if isinstance(picked, str) else picked[0]
+        if export_folders.is_known(group, folder):
+            return {"ok": False, "error": f"dossier déjà dans la liste : {folder}"}
+        export_folders.add(group, folder)
+        print(f"✓ export folder added — {group}: {folder}")
+        return {"ok": True, "path": folder}
+
+    def remove_export_folder(self, group, folder):
+        """Drop an extra folder from a group's list (its files are left
+        untouched). A group's local folder can't be removed."""
+        if group not in export_folders.GROUPS or not export_folders.remove(group, folder):
+            return {"ok": False, "error": f"dossier absent de la liste : {folder}"}
+        print(f"✓ export folder removed — {group}: {folder}")
+        return {"ok": True}
 
     def fetch_calendar_preview(self, ym):
         """On-demand Google Calendar fetch for the Calendrier page's preview
@@ -124,10 +246,12 @@ class Api:
             return {"ok": False, "error": str(e)}
 
         rows = []
+        seen = set()  # (day, uid) covered by a calendar event
         for event_date, raw_title in events:
             uid, fraction, status = resolve_event(raw_title, uid_map, name_map)
             local, existing_fraction = None, None
             if uid:
+                seen.add((event_date.day, uid))
                 existing_fraction = existing_entries.get((event_date.day, uid))
                 if existing_fraction is None:
                     local = "new"
@@ -145,8 +269,55 @@ class Api:
                 "local": local,
                 "existing_fraction": existing_fraction,
             })
-        print(f"✓ calendar preview — {len(rows)} event(s)")
+
+        # entries already in the .task file with no matching calendar event
+        missing = 0
+        for (day, uid), existing_fraction in existing_entries.items():
+            if (day, uid) in seen:
+                continue
+            try:
+                day_date = range_start.replace(day=day)
+                date_str, weekday = str(day_date), WEEKDAY_FR[day_date.weekday()]
+            except ValueError:
+                date_str, weekday = f"{ym}-{day:02d}", "?"
+            rows.append({
+                "date": date_str,
+                "weekday": weekday,
+                "title": "",
+                "uid": uid,
+                "fraction": existing_fraction,
+                "status": "local",
+                "local": "missing",
+                "existing_fraction": existing_fraction,
+            })
+            missing += 1
+        rows.sort(key=lambda r: r["date"])
+
+        print(f"✓ calendar preview — {len(rows) - missing} event(s), {missing} local only")
         return {"ok": True, "rows": rows}
+
+    def open_task_file(self, ym):
+        """Open database/tasks/{ym}.task in the OS default editor -- called by
+        the Calendrier page's "Ouvrir" button for the month on screen. A
+        missing file is created with just its "# YYYY-MM" header first (same
+        as write_task_entry() does for a new month)."""
+        if not re.fullmatch(r"\d{4}-\d{2}", ym or ""):
+            return {"ok": False, "error": f"mois invalide : {ym}"}
+        from tools.calendar_export import task_file_path
+        return _open_data_file(task_file_path(ym), f"# {ym}\n\n")
+
+    def open_declaration_file(self, kind, year):
+        """Open database/{kind}/{year}.{kind} (kind = "tva" or "urssaf") in
+        the OS default editor -- called by the TVA page's "Ouvrir" button.
+        A missing file is created with just a comment line describing the
+        format (see packages/database/declarations.py)."""
+        headers = {"tva": "# annee-mois=HT déclaré", "urssaf": "# annee-trimestre=HT déclaré"}
+        if kind not in headers or not re.fullmatch(r"\d{4}", str(year)):
+            return {"ok": False, "error": f"fichier de déclaration invalide : {kind} {year}"}
+        from modules.path import Path
+        from packages.database.database import DatabaseType
+        path = Path.getDbTypePath(DatabaseType[kind]) + f"{year}.{kind}"
+        return _open_data_file(path, headers[kind] + "\n")
 
     def import_calendar_entry(self, ym, date_str, uid, fraction, replace=False):
         """Write one resolved calendar row into database/tasks/{ym}.task —
@@ -264,8 +435,9 @@ class Api:
         return result
 
     def generate_bill_pdf(self, project_uid, bill_uid):
-        """Generate (or regenerate) one bill's PDF on demand and open it --
-        called by the Éditer les factures page's per-row "PDF" button."""
+        """Generate (or regenerate) one bill's PDF on demand, copy it to the
+        extra "pdf" folders, and open it -- called by the Éditer les factures
+        page's per-row "PDF" button."""
         print(f"→ generate pdf {project_uid}/{bill_uid}")
         try:
             from tools.bill_pdf import generate_bill_pdf

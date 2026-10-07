@@ -22,7 +22,7 @@ except locale.Error:
     locale.setlocale(locale.LC_ALL, '')
 
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 
@@ -68,10 +68,19 @@ def card(label, value):
 def th(*cols):
     return "<tr>" + "".join(f"<th>{c}</th>" for c in cols) + "</tr>"
 
+def workdays_in_year(year):
+    """Theoretical worked days of a year: every Monday-Friday (bank holidays
+    and vacations are not removed)."""
+    d, end, n = date(year, 1, 1), date(year + 1, 1, 1), 0
+    while d < end:
+        n += d.weekday() < 5
+        d += timedelta(days=1)
+    return n
+
 # ─── per-tab rendering ────────────────────────────────────────────────────────
 
-def render_tab(bills_slice):
-    """Build the inner HTML for one time-range tab."""
+def render_tab(bills_slice, year=None):
+    """Build the inner HTML for one time-range tab (year=None: "Tout")."""
 
     total_ht = total_tva = total_ttc = total_days = 0.0
     by_month   = defaultdict(lambda: {"ht": 0.0, "ttc": 0.0, "days": 0.0})
@@ -115,6 +124,7 @@ def render_tab(bills_slice):
       {card("TVA", fmt_eur(total_tva))}
       {card("Total TTC", fmt_eur(total_ttc))}
       {card("Jours facturés", fmt_days(total_days))}
+      {card("Jours ouvrés (théorique)", fmt_days(workdays_in_year(year))) if year else ""}
       {card("Factures", str(len(bills_slice)))}
     </div>"""
 
@@ -313,7 +323,7 @@ for i, year in enumerate(years_with_bills):
     active = "active" if i == 0 else ""
     slice_ = [(p, b) for p, b in all_bills if b.uid[:4] == year]
     tabs_nav     += f'<button class="tab-btn {active}" onclick="showTab(\'{tid}\')" id="btn-{tid}">{year}</button>'
-    tabs_content += f'<div class="tab-panel {active}" id="{tid}">{render_tab(slice_)}</div>'
+    tabs_content += f'<div class="tab-panel {active}" id="{tid}">{render_tab(slice_, int(year))}</div>'
 
 # "Tout" tab
 tid = "tab-all"
