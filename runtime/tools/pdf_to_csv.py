@@ -167,7 +167,8 @@ def to_csv(transactions: list[dict], output_path: str):
 # Main
 # ---------------------------------------------------------------------------
 
-RELEVES_DIR = Path(__file__).parent.parent / "database" / "releves"
+# runtime/tools/pdf_to_csv.py -> repo root (parents[2]) / database / releves
+RELEVES_DIR = Path(__file__).resolve().parents[2] / "database" / "releves"
 
 if __name__ == "__main__":
     if not RELEVES_DIR.exists():

@@ -319,6 +319,19 @@ class Api:
         path = Path.getDbTypePath(DatabaseType[kind]) + f"{year}.{kind}"
         return _open_data_file(path, headers[kind] + "\n")
 
+    def open_bill_file(self, project_uid):
+        """Open database/bills/{project_uid}.bill (the source file holding all
+        of that project's bills) in the OS default editor -- called by the
+        Éditer factures page's per-row "Source" button. Never creates it: a
+        bill row on that page means the file already exists."""
+        if not re.fullmatch(r"[\w-]+", project_uid or ""):
+            return {"ok": False, "error": f"projet invalide : {project_uid}"}
+        from tools.bill_editor import bill_file_path
+        path = bill_file_path(project_uid)
+        if not os.path.isfile(path):
+            return {"ok": False, "error": f"fichier introuvable : {os.path.basename(path)}"}
+        return _open_data_file(path, "")
+
     def import_calendar_entry(self, ym, date_str, uid, fraction, replace=False):
         """Write one resolved calendar row into database/tasks/{ym}.task —
         called by the Calendrier page's per-row and "Importer tout" buttons.

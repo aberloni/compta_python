@@ -14,33 +14,36 @@ Personal data lives in `database/` at the repo root (sibling of `runtime/`). It 
 
 ```
 database/
-  infos/        ← autoe.compta, rib.compta
-  clients/      ← {uid}.compta
-  projects/     ← {uid}.compta
-  tasks/        ← tasks_{YYYY-MM}.compta
-  bills/        ← bills_{projectUid}.compta
+  infos/        ← autoe.info, rib.info, statics.info, impots.info, {ISO}.info
+  clients/      ← {uid}.cli
+  projects/     ← {uid}.proj
+  tasks/        ← {YYYY-MM}.task
+  bills/        ← {projectUid}.bill
   wiring/       ← {*}.wire — received bank transfers, matched to bills
   tva/          ← {YYYY}.tva — TVA declarations actually filed (monthly)
   urssaf/       ← {YYYY}.urssaf — URSSAF declarations actually filed (quarterly)
-  releves/      ← bank statement exports
+  creditors/    ← {category}.cred — creditor labels grouped by category
+  statements/   ← *.csv — bank statements read by Statements
+  releves/      ← bank statement PDFs (tools/pdf_to_csv.py writes their CSV here)
 exports/
   billings/     ← generated HTML, PDF, .dump
   view/         ← generated dashboards (billing.html, wiring.html, tva.html, ...)
 ```
 
-Repo contains `runtime/` code plus `database/` (gitignored, real data) and `exports/` (generated). `__samples/` has anonymised example `.compta` files.
+Repo contains `runtime/` code plus `database/` (gitignored, real data) and `exports/` (generated). `__samples/` has anonymised example data files.
 
 ---
 
-## Data format — `.compta` files
+## Data format
 
 Plain-text, parsed by `modules/assocs.py → Assoc / AssocEntry`.
+The extension depends on the folder, set in `runtime/configs.py → DB_EXTENSIONS` (`.cli`, `.proj`, `.task`, `.bill`, `.info`, `.cred`, `.wire`, `.tva`, `.urssaf`; `.csv` for statements). `Assoc` adds it to the file name, falling back to `.compta` for a type not listed.
 
 Syntax: `key:value` or `key:value,value2,value3`
 
 Each file type lives in its own `database/{type}/` subfolder (matched by `DatabaseType` enum).
 
-### infos/autoe.compta
+### infos/autoe.info
 ```
 name:André BERLEMONT
 job:Développeur indépendant
@@ -52,7 +55,7 @@ phone:...
 ```
 `|` in address = line break in HTML output.
 
-### infos/rib.compta
+### infos/rib.info
 ```
 titulaire:M. André Berlemont
 bank:Société Générale
@@ -72,11 +75,11 @@ tva:0.2                          ← TVA rate applied on bills for clients of th
 mention:Autoliquidation - TVA due par le preneur, art. 44 Directive 2006/112/CE
 ```
 Filename = ISO 3166-1 alpha-2 country code (`FR.info`, `BE.info`, ...) — not a language code (`EN` is invalid, UK is `GB`).
-`Client.country` (from `clients/{uid}.compta`, defaults to `FR` if absent) selects which file applies.
+`Client.country` (from `clients/{uid}.cli`, defaults to `FR` if absent) selects which file applies.
 `Bill.getTVA()` uses this file's `tva` if the client's country file exists and defines it. Otherwise: `FR` clients fall back to the project's own `tva:` field (rétrocompatibilité); non-`FR` clients default to `0` (no French TVA — intracommunautaire/hors UE by default, no need to set `tva:` in non-FR country files unless a rate genuinely applies).
 `mention` (optional) is rendered on the bill as `{{mention_block}}`, distinct from the fixed `{{dispense}}` notice (RCS/RM registration exemption, always shown regardless of country).
 
-### clients/{uid}.compta
+### clients/{uid}.cli
 ```
 uid:darjeeling
 name:Darjeeling production
@@ -88,7 +91,7 @@ color:#4e79a7           ← optional, hex color used in views (e.g. billing.html
 ```
 `creditor` = label used to match bank statement lines.
 
-### projects/{uid}.compta
+### projects/{uid}.proj
 ```
 uid:merlies
 name:The Merlies
@@ -112,7 +115,7 @@ client:2025-06-01=autreclient  ← client effective from that date
 `Project.getClient(date)` returns the Client applicable at that date. `Bill.getClient()` calls it with `bill.start`.
 The PDF header uses `bill.getClient()` so the correct client appears per billing period.
 
-### tasks/tasks_{YYYY-MM}.compta
+### tasks/{YYYY-MM}.task
 ```
 # YYYY-MM
 
@@ -130,16 +133,19 @@ Time value is a float in [0, 1] representing fraction of an 8h day.
 
 **Amélioration prévue** : le `YYYY-MM` dans chaque date est redondant avec le nom de fichier. Cible : accepter juste le jour — `projectUid:DD` ou `projectUid:DD,0.5` — et reconstruire la date complète depuis le nom de fichier dans `Task.__init__`. Rétrocompatibilité avec `YYYY-MM-DD` à conserver.
 
-### bills/bills_{projectUid}.compta
+### bills/{projectUid}.bill
 ```
 YYYY-MM-DD:YYYY-MM-DD,YYYY-MM-DD      ← bill date : period start, period end
-YYYY-MM-DD:YYYY-MM-DD,YYYY-MM-DD|280  ← forfait override (fixed amount)
+YYYY-MM-DD:YYYY-MM-DD,YYYY-MM-DD|12   ← day count override (legacy, same as jours:)
 YYYY-MM-DD:YYYY-MM,YYYY-MM            ← day can be omitted: start → 1st of month, end → last day of month
-label:Custom prestation label
-designation:Subtitle text
-frais:Description,150,2               ← additional line: label, unit price, qty
+forfait:4200                          ← fixed HT amount (skips days × taux)
+jours:12                              ← day count override (HT = jours × taux at bill start)
+label:Custom prestation label         ← replaces "Prestation x N j" on line items
+designation:Subtitle text             ← subtitle above the line items
+objet:Other name                      ← replaces the project name in the invoice "objet"
+frais:Description,150,2               ← additional line: label, unit price, qty (qty defaults to 1)
 ```
-Multiple bills per file, one block per bill date.
+Multiple bills per file, one block per bill date: option lines apply to the bill header above them. `#` = comment. Parsed by `Project` (bill file loop) and `Bill.injectData()`. The same reminder is shown by the "?" button on Éditer factures (`view_bills_edit.py`) — keep both in sync.
 
 ### wiring/{YYYY}.wire — received bank transfers
 ```
@@ -207,7 +213,7 @@ Full list in `runtime/map.md`. Run from `runtime/` directory.
 | Class | File | Role |
 |-------|------|------|
 | `Database` | `packages/database/database.py` | Singleton loader; call `Database.init_billing()` or `Database.init_all()` |
-| `Assoc` | `modules/assocs.py` | Parses a `.compta` file into `AssocEntry[]` |
+| `Assoc` | `modules/assocs.py` | Parses a database text file into `AssocEntry[]` |
 | `Project` | `packages/database/project.py` | Holds bills, tasks, client ref, daily rate |
 | `Bill` | `packages/database/bill.py` | Date range + tasks slice + totals (HT/TVA/TTC) |
 | `Task` | `packages/database/task.py` | One work-day entry (project, date, fraction) |
@@ -243,14 +249,17 @@ Each bill also generates a `.dump` file (when debugging) containing a markdown s
 
 ---
 
-## configs.py
+## settings.conf / configs.py
 
-```python
-dbExtension = ".compta"
-billingRange = ["2026-01", "2026-03"]   # [start, end] inclusive
-creatPdf = True
-openBillingFolder = True                 # os.startfile() after export (Windows)
+User settings live in `runtime/settings.conf` (`key:value`, hand-editable), loaded by `configs.py`:
 ```
+billingRange:2026-05,2026-07   ← [start, end] inclusive, YYYY-MM
+creatPdf:true
+openBillingFolder:true         ← os.startfile() after export (Windows)
+backupBeforeBilling:true       ← zip database/ before generating bills
+pause_on_exit:true             ← keep the terminal open after scripts finish
+```
+`configs.py` also holds `DB_EXTENSIONS` (extension per database folder) and `dbPath` (repo root).
 
 ---
 

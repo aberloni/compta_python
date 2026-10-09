@@ -88,9 +88,21 @@ def build_project_tab(p):
           <td class="actions">
             <button class="save-btn" onclick="return saveBillRange(this)">Enregistrer</button>
             <button class="pdf-btn" onclick="return generateBillPdf(this)">PDF</button>
+            <button class="source-btn" onclick="return openBillFile(this)" title="Ouvre {p.uid}.bill, le fichier source des factures de ce projet">Source</button>
             {delete_btn}
             <span class="row-status"></span>
           </td>
+        </tr>"""
+
+    # column totals -- .total-row stays pinned at the bottom when sorting (modules/layout.py)
+    if bills:
+        rows += f"""<tr class="total-row">
+          <td>Total</td>
+          <td colspan="4">{len(bills)} facture{'s' if len(bills) > 1 else ''}</td>
+          <td class="num">{fmt_days(sum(b.countDays() for b in bills))}&nbsp;j</td>
+          <td class="num">{fmt_eur(sum(b.getHT() for b in bills))}</td>
+          <td class="num">{fmt_eur(sum(b.getTTC() for b in bills))}</td>
+          <td></td>
         </tr>"""
 
     table_html = f"""
@@ -154,6 +166,21 @@ async function saveBillRange(btn) {
     status.className = 'row-status ok';
     await reloadAfterEdit();
   } else {
+    status.textContent = 'Erreur : ' + (result && result.error || '?');
+    status.className = 'row-status err';
+  }
+  return false;
+}
+
+async function openBillFile(btn) {
+  const row = btn.closest('tr');
+  const status = row.querySelector('.row-status');
+  if (!(window.pywebview && window.pywebview.api)) {
+    status.textContent = "Indisponible en dehors de l'application.";
+    return false;
+  }
+  const result = await window.pywebview.api.open_bill_file(row.dataset.project);
+  if (!(result && result.ok)) {
     status.textContent = 'Erreur : ' + (result && result.error || '?');
     status.className = 'row-status err';
   }
@@ -245,10 +272,25 @@ function onOverlayClick(event) {
   return false;
 }
 
+function openHelpModal() {
+  document.getElementById('help-overlay').hidden = false;
+  return false;
+}
+
+function closeHelpModal() {
+  document.getElementById('help-overlay').hidden = true;
+  return false;
+}
+
+function onHelpOverlayClick(event) {
+  if (event.target.id === 'help-overlay') closeHelpModal();
+  return false;
+}
+
 document.addEventListener('keydown', function (event) {
-  if (event.key === 'Escape' && !document.getElementById('add-bill-overlay').hidden) {
-    closeAddBillModal();
-  }
+  if (event.key !== 'Escape') return;
+  if (!document.getElementById('add-bill-overlay').hidden) closeAddBillModal();
+  if (!document.getElementById('help-overlay').hidden) closeHelpModal();
 });
 
 async function submitAddBill(btn) {
@@ -316,6 +358,7 @@ page_style = """
   .num { text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .mono { font-family: monospace; font-size: 12px; color: #777; }
   .empty { color: #bbb; font-style: italic; }
+  .total-row td { font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }
   .tag { font-size: 10px; background: #e8f0fe; color: #3367d6;
           border-radius: 4px; padding: 2px 6px; margin-left: 6px; white-space: nowrap; }
   .tag.forfait { background: #fce8b2; color: #b06000; }
@@ -334,6 +377,9 @@ page_style = """
               background: #3367d6; color: #fff; cursor: pointer; font-size: 12px; font-weight: 600; }
   .pdf-btn:hover { background: #2851ad; }
   .pdf-btn:disabled { opacity: .5; cursor: default; }
+  .source-btn { padding: 5px 13px; border: 1px solid #ddd; border-radius: 14px;
+                 background: #fff; color: #333; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .source-btn:hover { background: #f0f0f0; }
   .delete-btn { padding: 6px 14px; border: none; border-radius: 14px;
                  background: #c62828; color: #fff; cursor: pointer; font-size: 12px; font-weight: 600; }
   .delete-btn:hover { background: #a01f1f; }
@@ -349,6 +395,10 @@ page_style = """
           box-shadow: 0 3px 10px rgba(0,0,0,.25); display: flex;
           align-items: center; justify-content: center; z-index: 900; }
   .fab:hover { background: #256428; }
+  /* "?" syntax help, left of the "+" */
+  .fab-help { right: 100px; background: #fff; color: #555; border: 1px solid #ddd;
+               font-size: 24px; font-weight: 700; }
+  .fab-help:hover { background: #f0f0f0; }
 
   /* add-bill overlay + modal */
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4);
@@ -372,6 +422,15 @@ page_style = """
   .modal-submit { background: #2e7d32; color: #fff; }
   .modal-submit:hover { background: #256428; }
   .modal-submit:disabled { opacity: .5; cursor: default; }
+
+  /* syntax help modal */
+  .modal.modal-wide { width: 680px; max-width: calc(100vw - 32px); }
+  .help-text { font-size: 13px; color: #555; line-height: 1.5; }
+  .help-text code { background: #f0f0f0; border-radius: 3px; padding: 1px 4px; font-size: 12px; }
+  .help-code { background: #f7f7f7; border: 1px solid #eee; border-radius: 6px; padding: 12px 14px;
+                font-family: monospace; font-size: 12px; line-height: 1.6; color: #222;
+                overflow-x: auto; white-space: pre; }
+  .help-code .c { color: #999; }
 """
 
 body_content = f"""
@@ -385,7 +444,35 @@ body_content = f"""
 
 {tabs_content}
 
+<button id="help-fab" class="fab fab-help" onclick="return openHelpModal()" title="Syntaxe du fichier source des factures">?</button>
 <button id="add-bill-fab" class="fab" onclick="return openAddBillModal()" title="Ajouter une facture">+</button>
+
+<div id="help-overlay" class="overlay" onclick="return onHelpOverlayClick(event)" hidden>
+  <div class="modal modal-wide">
+    <h3>Syntaxe du fichier source (.bill)</h3>
+    <p class="help-text">Une facture commence par une ligne d'en-tête ; les lignes qui suivent s'appliquent
+      à cette facture jusqu'à la suivante. <code>#</code> en début de ligne = commentaire.</p>
+<pre class="help-code"><span class="c"># en-tête : date facture : début, fin</span>
+2026-03-31:2026-03-01,2026-03-31
+<span class="c"># début / fin en AAAA-MM (1er / dernier jour du mois) ou AAAA</span>
+2026-03-31:2026-03,2026-03
+<span class="c"># |N en fin d'en-tête : nombre de jours imposé (au lieu des tâches)</span>
+2026-03-31:2026-03,2026-03|12
+
+<span class="c"># options (sous l'en-tête, toutes facultatives)</span>
+forfait:4200                  <span class="c">montant HT fixe (ignore jours × taux)</span>
+jours:12                      <span class="c">nombre de jours imposé (comme |N)</span>
+label:Développement           <span class="c">remplace « Prestation x N j » sur les lignes</span>
+designation:Sous-titre        <span class="c">sous-titre au-dessus des lignes</span>
+objet:Autre nom               <span class="c">remplace le nom du projet dans l'objet</span>
+frais:Déplacement,150,2       <span class="c">ligne en plus : libellé, prix unitaire, quantité</span></pre>
+    <p class="help-text">La date de facture (avant le <code>:</code>) doit être complète : AAAA-MM-JJ.
+      Pour <code>frais</code>, la quantité vaut 1 si elle est omise.</p>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="return closeHelpModal()">Fermer</button>
+    </div>
+  </div>
+</div>
 
 <div id="add-bill-overlay" class="overlay" onclick="return onOverlayClick(event)" hidden>
   <div class="modal">

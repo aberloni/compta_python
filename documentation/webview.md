@@ -57,6 +57,7 @@ Verified: all `view_*.py` scripts still regenerate cleanly under `COMPTA_WEBVIEW
 ## TVA / Trimestres pages — open declarations file
 
 - An **Ouvrir YYYY.tva** button on the TVA page (header, left of "Déclarer sur impots.gouv") and an **Ouvrir YYYY.urssaf** button on the Trimestres page (left of "Déclarer sur l'URSSAF") call `Api.open_declaration_file(kind, year)` for the current year. It opens `database/{kind}/{year}.{kind}`, where `kind` is `"tva"` or `"urssaf"`. A missing file is created first with a single comment line describing the format. `open_task_file()` and `open_declaration_file()` share `_open_data_file(path, header)`, which creates the file if needed and then calls `os.startfile()`.
+- A **Source** button on each row of Éditer factures (next to "PDF") calls `Api.open_bill_file(project_uid)`, which opens `database/bills/{project_uid}.bill` (path from `tools/bill_editor.bill_file_path()`), the file holding all of that project's bills. It never creates the file. It refuses a `project_uid` that isn't `[\w-]+` or whose file doesn't exist, and the error shows in the row status.
 
 ## Calendrier page — import preview, local-only rows
 

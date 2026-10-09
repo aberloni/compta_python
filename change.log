@@ -96,3 +96,8 @@ Simple list of changes, grouped by day.
 - Updated the list of scripts and pages so it matches what the app actually contains.
 - Text on every page of the app can now be selected and copied (amounts, invoice numbers, bank details…).
 - The bank transfer files now use tabs instead of double spaces between columns, the same separator the app writes when adding a transfer or linking it to an invoice.
+- Added a "Source" button on each invoice row of the Éditer factures page that opens the file where that project's invoices are written, so it can be edited directly.
+- Corrected the developer notes so they give the real names of the data files.
+- Fixed the bank statement PDF converter, which looked for the statements in the wrong folder since it was moved.
+- Added a "?" button next to the "+" on the Éditer factures page that shows a reminder of everything that can be written in an invoice file (dates, fixed price, day count, extra costs, labels…).
+- The Éditer factures page now shows a total line at the bottom of each project's table: number of invoices, days, amount before tax and amount with tax.
