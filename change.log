@@ -89,3 +89,8 @@ Simple list of changes, grouped by day.
 ## 2026-10-05
 - Added a "Dossier des PDF" button at the top of the Éditer factures page that opens the folder where invoice PDFs are generated.
 - On the Virements page, the "Associer" button next to each transfer is now hidden until you change the invoice in its field, and hides again if you put back the invoice already saved.
+
+## 2026-10-09
+- Fixed a setting that silently kept some new program files out of the project history, which is why the TVA and Trimestres pages are missing two of their files on this computer.
+- Fixed the error message shown when a data file is empty, which crashed instead of being displayed.
+- Updated the list of scripts and pages so it matches what the app actually contains.

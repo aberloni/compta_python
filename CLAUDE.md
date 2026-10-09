@@ -180,13 +180,19 @@ Export filename: `{fullUID}_{clientUid}_{projectUid}.{ext}`
 
 | Script | Purpose |
 |--------|---------|
-| `main_billing.py` | Generate PDFs for a date range (set in `configs.py`) |
-| `main_tva.py` | Print HT/TVA/TTC totals per bill |
-| `main_unpaid.py` | Cross-reference bills vs bank statements |
-| `main_workdays.py` | Count worked/missing days per month |
-| `main_labels.py` | View data from bank statements |
+| `app_gui.py` | Desktop app (pywebview) — runs the `view_*.py` pages and their buttons |
+| `do_billing.py` | Generate PDFs for the date range set in `settings.conf` |
+| `do_report.py` | HTML report listing the bills in `exports/billings/` |
+| `do_zip_backup.py` / `do_zip_restore.py` | Zip / restore `database/` |
+| `view_*.py` | Generate one `exports/view/*.html` page each |
+| `shell_tva.py` | Print HT/TVA/TTC totals per bill |
+| `shell_unpaid.py` | Cross-reference bills vs bank statements (WIP) |
+| `shell_workdays.py` | Count worked/missing days per month |
+| `shell_labels.py` | View data from bank statements |
+| `tools/pdf_to_csv.py` | Bank statement PDFs → CSV |
+| `tools/routine_tasks.py` | Pre-generate a year of `.task` files |
 
-Run from `runtime/` directory.
+Full list in `runtime/map.md`. Run from `runtime/` directory.
 
 ---
 

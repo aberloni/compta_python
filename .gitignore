@@ -3,8 +3,7 @@ __*
 /export*
 /samples*
 
-database/
-database/
+/database/
 externals/
 
 runtime/backup_folders.conf
