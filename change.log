@@ -94,3 +94,5 @@ Simple list of changes, grouped by day.
 - Fixed a setting that silently kept some new program files out of the project history, which is why the TVA and Trimestres pages are missing two of their files on this computer.
 - Fixed the error message shown when a data file is empty, which crashed instead of being displayed.
 - Updated the list of scripts and pages so it matches what the app actually contains.
+- Text on every page of the app can now be selected and copied (amounts, invoice numbers, bank details…).
+- The bank transfer files now use tabs instead of double spaces between columns, the same separator the app writes when adding a transfer or linking it to an invoice.

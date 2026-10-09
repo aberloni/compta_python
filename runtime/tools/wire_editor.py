@@ -3,8 +3,9 @@ Write access to database/wiring/{year}.wire files -- used by the "Virements"
 page's "add wire" form and per-row "associate to a bill" control (see
 app_gui.py: add_wire() / associate_wire()).
 
-Wire files are one line per virement, whitespace-separated:
-    CLIENT_UID  YYYY-MM-DD  AMOUNT  [BILL_FUID]
+Wire files are one line per virement, written tab-separated (any whitespace
+is accepted when reading):
+    CLIENT_UID<TAB>YYYY-MM-DD<TAB>AMOUNT[<TAB>BILL_FUID]
 associate_wire() rewrites a single line in place, targeting it by
 (source file, line number) as recorded on the Wire object when the file was
 loaded (see packages/database/wiring.py) -- never by content-matching, so it

@@ -3,7 +3,7 @@ pdf_to_csv.py
 Extrait les transactions de tous les PDFs dans database/releves/ → CSV
 
 Usage:
-    python runtime/pdf_to_csv.py
+    python runtime/tools/pdf_to_csv.py
 
 Un CSV par PDF, généré dans database/releves/
 """

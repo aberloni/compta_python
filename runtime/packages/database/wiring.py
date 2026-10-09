@@ -2,8 +2,8 @@
 Loads all .wire files and exposes received amounts per client.
 
 Wire file format (one line per virement):
-    CLIENT_UID    YYYY-MM-DD    AMOUNT_TTC
-Fields are whitespace-separated.
+    CLIENT_UID<TAB>YYYY-MM-DD<TAB>AMOUNT_TTC[<TAB>BILL_FUID]
+Fields are tab-separated (any whitespace is accepted when reading).
 """
 
 from datetime import datetime

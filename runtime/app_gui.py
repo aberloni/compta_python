@@ -472,8 +472,11 @@ if __name__ == "__main__":
     api = Api()
     api.run("homepage.html")
 
+    # text_select: pywebview disables text selection by default, which
+    # prevents copying anything (amounts, IBAN, invoice ids) from the pages
     webview.create_window(
         "compta_python", HOMEPAGE_PATH, width=1200, height=800, js_api=api,
+        text_select=True,
     )
 
     webview.start()

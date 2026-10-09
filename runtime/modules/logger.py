@@ -1,25 +1,23 @@
 
-def log(log, owner):
-    logPrint(log, owner)
+def log(log, owner = None):
+    logPrint(log, "", owner)
 
-def logWarning(log, owner):
+def logWarning(log, owner = None):
     logPrint(log, "WARNING", owner)
 
-def logError(log, owner):
+def logError(log, owner = None):
     logPrint(log, "ERROR", owner)
-
-def logPrint(log, owner):
-    logPrint(log, "", owner)
 
 # internal
 def logPrint(log, suffix, owner):
-    
-    if owner != None: 
+
+    output = ""
+    if owner != None:
         output = str(type(owner))
-    
+
     if len(suffix) > 0:
         output += " ["+suffix+"] "
-        
+
     output += log
-    
+
     print(output)

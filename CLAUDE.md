@@ -141,6 +141,12 @@ frais:Description,150,2               ← additional line: label, unit price, qt
 ```
 Multiple bills per file, one block per bill date.
 
+### wiring/{YYYY}.wire — received bank transfers
+```
+clientUid	YYYY-MM-DD	amountTTC	billFullUid   ← tab-separated, billFullUid optional
+```
+One line per transfer; `#` = comment. Tab is the separator written by the app (add wire / assign a bill on the Virements page); any whitespace is accepted when reading. Parsed by `packages/database/wiring.py → Wiring`, written by `tools/wire_editor.py`.
+
 ### tva/{YYYY}.tva — TVA declarations filed
 ```
 # annee-periode=declaration
