@@ -5,7 +5,9 @@ app_gui.py: add_wire() / associate_wire()).
 
 Wire files are one line per virement, written tab-separated (any whitespace
 is accepted when reading):
-    CLIENT_UID<TAB>YYYY-MM-DD<TAB>AMOUNT[<TAB>BILL_FUID]
+    CLIENT_UID<TAB>YYYY-MM-DD<TAB>AMOUNT[<TAB>BILL_FUID[,BILL_FUID...]]
+A virement may pay several bills: the bill field lists their full UIDs,
+comma-separated (the page sends them that way too).
 associate_wire() rewrites a single line in place, targeting it by
 (source file, line number) as recorded on the Wire object when the file was
 loaded (see packages/database/wiring.py) -- never by content-matching, so it
@@ -18,6 +20,7 @@ from datetime import datetime
 
 from modules.path import Path
 from packages.database.database import Database, DatabaseType
+from packages.database.wiring import parse_bill_fuids
 
 
 def wire_file_path(year):
@@ -36,18 +39,32 @@ def _write_lines(path, lines):
         f.write("\n".join(lines) + "\n" if lines else "")
 
 
-def _find_bill_fuid(bill_fuid):
-    """Return True if bill_fuid matches an existing bill somewhere in the database."""
+def _check_bill_fuids(bill_fuids):
+    """Parse a comma-separated list of bill full UIDs. Return (fuids, error):
+    error is set if one of them matches no bill, or is listed twice."""
+    fuids = parse_bill_fuids(bill_fuids)
+    if not fuids:
+        return [], None
+    if len(set(fuids)) != len(fuids):
+        return fuids, "une facture est listée deux fois"
     db = Database.init_billing()
-    for p in db.projects:
-        for b in p.bills:
-            if (b.getFullUid() or b.uid) == bill_fuid:
-                return True
-    return False
+    known = {(b.getFullUid() or b.uid) for p in db.projects for b in p.bills}
+    missing = [f for f in fuids if f not in known]
+    if missing:
+        return fuids, "facture(s) introuvable(s) : " + ", ".join(missing)
+    return fuids, None
+
+
+def _wire_line(client_uid, date_str, amount, bill_fuids):
+    line = f"{client_uid}\t{date_str}\t{amount}"
+    if bill_fuids:
+        line += "\t" + ",".join(bill_fuids)
+    return line
 
 
 def add_wire(client_uid, date_str, amount, bill_fuid=None):
-    """Append a new wire line to database/wiring/{year}.wire, year taken from date_str."""
+    """Append a new wire line to database/wiring/{year}.wire, year taken from date_str.
+    bill_fuid may list several bills, comma-separated."""
     client_uid = (client_uid or "").strip()
     if not client_uid:
         return {"ok": False, "error": "le client est requis"}
@@ -64,19 +81,16 @@ def add_wire(client_uid, date_str, amount, bill_fuid=None):
     except ValueError:
         return {"ok": False, "error": f"montant invalide : {amount!r}"}
 
-    bill_fuid = (bill_fuid or "").strip() or None
-    if bill_fuid and not _find_bill_fuid(bill_fuid):
-        return {"ok": False, "error": f"facture {bill_fuid!r} introuvable"}
+    bill_fuids, error = _check_bill_fuids(bill_fuid)
+    if error:
+        return {"ok": False, "error": error}
 
     path = wire_file_path(dt.year)
     lines = _read_lines(path)
     if lines and lines[-1].strip() != "":
         lines.append("")
 
-    line = f"{client_uid}\t{date_str}\t{amount}"
-    if bill_fuid:
-        line += f"\t{bill_fuid}"
-    lines.append(line)
+    lines.append(_wire_line(client_uid, date_str, amount, bill_fuids))
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     _write_lines(path, lines)
@@ -85,15 +99,16 @@ def add_wire(client_uid, date_str, amount, bill_fuid=None):
 
 def associate_wire(filename, line_no, bill_fuid):
     """Set (or clear, if bill_fuid is empty) the bill association on one wire
-    line, identified by its filename (under database/wiring/) + line number."""
+    line, identified by its filename (under database/wiring/) + line number.
+    bill_fuid may list several bills, comma-separated."""
     filename = os.path.basename((filename or "").strip())
     source_file = os.path.join(Path.getDbTypePath(DatabaseType.wiring), filename) if filename else ""
     if not filename or not os.path.isfile(source_file):
         return {"ok": False, "error": "fichier de virements introuvable"}
 
-    bill_fuid = (bill_fuid or "").strip() or None
-    if bill_fuid and not _find_bill_fuid(bill_fuid):
-        return {"ok": False, "error": f"facture {bill_fuid!r} introuvable"}
+    bill_fuids, error = _check_bill_fuids(bill_fuid)
+    if error:
+        return {"ok": False, "error": error}
 
     lines = _read_lines(source_file)
     try:
@@ -107,10 +122,7 @@ def associate_wire(filename, line_no, bill_fuid):
     if len(parts) < 3:
         return {"ok": False, "error": "ligne de virement introuvable"}
 
-    new_line = f"{parts[0]}\t{parts[1]}\t{parts[2]}"
-    if bill_fuid:
-        new_line += f"\t{bill_fuid}"
-    lines[line_no] = new_line
+    lines[line_no] = _wire_line(parts[0], parts[1], parts[2], bill_fuids)
 
     _write_lines(source_file, lines)
     return {"ok": True}

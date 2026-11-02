@@ -150,8 +150,9 @@ Multiple bills per file, one block per bill date: option lines apply to the bill
 ### wiring/{YYYY}.wire — received bank transfers
 ```
 clientUid	YYYY-MM-DD	amountTTC	billFullUid   ← tab-separated, billFullUid optional
+clientUid	YYYY-MM-DD	amountTTC	uid1,uid2     ← one transfer paying several bills
 ```
-One line per transfer; `#` = comment. Tab is the separator written by the app (add wire / assign a bill on the Virements page); any whitespace is accepted when reading. Parsed by `packages/database/wiring.py → Wiring`, written by `tools/wire_editor.py`.
+One line per transfer; `#` = comment. A transfer may pay several bills (comma-separated full UIDs): its amount is split in the listed order — each bill takes what it still owes (TTC minus earlier transfers), the last one takes the rest. `Wiring.payments_by_fuid(db)` does that split; every view uses it to know what each bill received and when. Tab is the separator written by the app (add wire / assign a bill on the Virements page); any whitespace is accepted when reading. Parsed by `packages/database/wiring.py → Wiring`, written by `tools/wire_editor.py`.
 
 ### tva/{YYYY}.tva — TVA declarations filed
 ```

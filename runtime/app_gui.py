@@ -23,6 +23,7 @@ import webview
 
 import do_zip_backup
 import do_zip_restore
+from modules import backup_state
 from modules import export_folders
 from modules.layout import PAGES
 
@@ -125,7 +126,9 @@ class Api:
             return {"ok": False, "error": "dossier database introuvable"}
         copies = export_folders.copy_to("zip", zip_path)
         print(f"✓ backup — {zip_path} (+{len(copies['copied'])} copie(s), {len(copies['failed'])} échec(s))")
-        return {"ok": True, "path": zip_path, **copies}
+        # new "Dernière sauvegarde" text, for the nav save icon to update the footer in place
+        summary = backup_state.summary_text(backup_state.baseline())
+        return {"ok": True, "path": zip_path, "summary": summary, **copies}
 
     def export_database(self):
         """Zip database/ to a location picked in a save dialog -- called by

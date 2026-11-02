@@ -6,9 +6,10 @@ Generate exports/view/wiring.html
   2. Factures (statut payé/partiel/en attente basé sur les associations explicites du .wire)
   3. Virements hors clients connus
 
-Table 1 is editable: each row's "Facture" cell doubles as a form to
-associate/reassign/clear that wire's bill (its "Associer" button only shows
-once the field differs from the bill already saved; saved via app_gui.py's
+Table 1 is editable: each row's "Facture(s)" cell doubles as a form to
+associate/reassign/clear that wire's bills -- one field per bill, "+" adds
+another, since one wire may pay several bills (its "Associer" button only
+shows once the fields differ from the bills already saved; saved via app_gui.py's
 associate_wire(), targeting the exact source file + line number recorded on
 the Wire object -- see packages/database/wiring.py). A form at the top lets
 you record a new received wire (add_wire()).
@@ -22,7 +23,6 @@ except locale.Error:
 
 import os
 from datetime import datetime
-from collections import defaultdict
 
 import configs
 from packages.database.database import Database
@@ -48,12 +48,9 @@ for p in db.projects:
             bills.append((p, b))
 bills.sort(key=lambda x: x[1].uid)
 
-# ─── build payment map from explicit bill_fuid associations ───────────────────
-# paid_by_fuid[fuid] = list of wires that reference it
-paid_by_fuid = defaultdict(list)
-for w in known_wires:
-    if w.bill_fuid:
-        paid_by_fuid[w.bill_fuid].append(w)
+# ─── build payment map from explicit bill associations ────────────────────────
+# paid_by_fuid[fuid] = payments it received (its share of each wire, see wiring.py)
+paid_by_fuid = wiring.payments_by_fuid(db, known_uids)
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,18 +68,37 @@ def card(label, value, cls=""):
 all_bill_fuids = sorted({(b.getFullUid() or b.uid) for p in db.projects for b in p.bills})
 bill_fuids_datalist = "".join(f'<option value="{fuid}">' for fuid in all_bill_fuids)
 
+# share of each wire given to each of its bills, shown as a tooltip when a
+# wire pays several bills
+share_by_wire = {(id(pay.wire), fuid): pay.amount for fuid, pays in paid_by_fuid.items() for pay in pays}
+
+def fuid_input(fuid="", title=""):
+    title_attr = f' title="{title}"' if title else ""
+    return f'<input type="text" class="fuid-input" list="bill-fuids" placeholder="aucune" value="{fuid}"{title_attr} oninput="onFuidInput(this)">'
+
+def fuid_inputs(wire):
+    """One input per bill paid by this wire (at least one, empty), plus a "+"
+    button to add another bill."""
+    fuids = wire.bill_fuids if wire else []
+    if len(fuids) > 1:
+        inputs = "".join(fuid_input(f, f"part de ce virement : {fmt(share_by_wire.get((id(wire), f), 0.0))}") for f in fuids)
+    else:
+        inputs = fuid_input(fuids[0] if fuids else "")
+    return f"""<span class="fuid-list">{inputs}</span>
+        <button class="add-fuid-btn" onclick="return addFuidInput(this)" title="Ajouter une autre facture payée par ce virement">+</button>"""
+
 wire_rows = ""
 total_wires = 0.0
 for w in known_wires:
     client = db.getClient(w.client_uid)
     name = client.name if client else w.client_uid
     filename = os.path.basename(w.source_file) if w.source_file else ""
-    wire_rows += f"""<tr data-filename="{filename}" data-line="{w.line_no}">
+    wire_rows += f"""<tr data-filename="{filename}" data-line="{w.line_no}" data-saved="{','.join(w.bill_fuids)}">
       <td>{w.date:%Y-%m-%d}</td>
       <td>{name}</td>
       <td class="num">{fmt(w.amount)}</td>
       <td class="actions">
-        <input type="text" class="fuid-input" list="bill-fuids" placeholder="aucune" value="{w.bill_fuid or ''}" data-saved="{w.bill_fuid or ''}" oninput="onFuidInput(this)">
+        {fuid_inputs(w)}
         <button class="save-btn" onclick="return associateWire(this)" hidden>Associer</button>
         <span class="row-status"></span>
       </td>
@@ -194,7 +210,10 @@ add_wire_form = f"""
   </label>
   <label>Date<input type="text" class="new-wire-date" placeholder="AAAA-MM-JJ"></label>
   <label>Montant TTC<input type="text" class="new-wire-amount" placeholder="0"></label>
-  <label>Facture (optionnel)<input type="text" class="new-wire-fuid" list="bill-fuids" placeholder="aucune"></label>
+  <div class="fuid-field">
+    <span class="fuid-field-label">Facture(s) (optionnel)</span>
+    <div class="actions">{fuid_inputs(None)}</div>
+  </div>
   <button onclick="return addWire(this)">Ajouter</button>
   <span class="add-status"></span>
 </div>"""
@@ -267,6 +286,14 @@ page_style = """
   .fuid-input { width: 130px; padding: 5px 8px; border: 1px solid #ddd; border-radius: 5px;
                  font-size: 12px; font-family: monospace; }
   .fuid-input:focus { outline: none; border-color: #888; }
+  .fuid-list { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+  .add-fuid-btn, .add-wire-form .add-fuid-btn { width: 24px; height: 24px; padding: 0; border: 1px solid #ddd;
+                   border-radius: 50%; background: #fff; color: #555; cursor: pointer;
+                   font-size: 14px; font-weight: 600; line-height: 1; }
+  .add-fuid-btn:hover, .add-wire-form .add-fuid-btn:hover { background: #f0f0f0; }
+  .fuid-field { display: flex; flex-direction: column; gap: 4px; }
+  .fuid-field-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .04em; }
+  .add-wire-form .fuid-input { width: 140px; font-size: 13px; }
   .save-btn { padding: 6px 14px; border: none; border-radius: 14px;
                background: #222; color: #fff; cursor: pointer; font-size: 12px; font-weight: 600; }
   .save-btn:hover { background: #444; }
@@ -284,10 +311,30 @@ async function reloadAfterEdit() {
   window.location.reload();
 }
 
-// "Associer" only shows once the typed bill differs from the one saved in the .wire file
+// bills typed in a row / the add form, comma-separated (empty fields skipped)
+function typedFuids(container) {
+  return Array.from(container.querySelectorAll('.fuid-input'))
+    .map(function (i) { return i.value.trim(); })
+    .filter(Boolean)
+    .join(',');
+}
+
+// "+": one more bill field, for a wire paying several bills
+function addFuidInput(btn) {
+  const list = btn.parentElement.querySelector('.fuid-list');
+  const input = list.querySelector('.fuid-input').cloneNode();
+  input.value = '';
+  input.removeAttribute('title');
+  list.appendChild(input);
+  input.focus();
+  return false;
+}
+
+// "Associer" only shows once the typed bills differ from the ones saved in the .wire file
 function onFuidInput(input) {
   const row = input.closest('tr');
-  row.querySelector('.save-btn').hidden = input.value.trim() === input.dataset.saved;
+  if (!row) return;
+  row.querySelector('.save-btn').hidden = typedFuids(row) === row.dataset.saved;
   row.querySelector('.row-status').textContent = '';
 }
 
@@ -300,7 +347,7 @@ async function associateWire(btn) {
   }
   const filename = row.dataset.filename;
   const line = row.dataset.line;
-  const fuid = row.querySelector('.fuid-input').value.trim();
+  const fuid = typedFuids(row);
   btn.disabled = true;
   status.textContent = '';
   status.className = 'row-status';
@@ -327,7 +374,7 @@ async function addWire(btn) {
   const client = wrap.querySelector('.new-wire-client').value;
   const date   = wrap.querySelector('.new-wire-date').value.trim();
   const amount = wrap.querySelector('.new-wire-amount').value.trim();
-  const fuid   = wrap.querySelector('.new-wire-fuid').value.trim();
+  const fuid   = typedFuids(wrap);
   if (!client || !date || !amount) {
     status.textContent = 'Client, date et montant sont requis.';
     status.className = 'add-status err';
@@ -362,7 +409,7 @@ body_content = f"""
 
 <h2>Virements reçus</h2>
 <table data-default-sort="0:asc">
-  <thead>{th("Date", "Client", "Montant TTC", "Facture")}</thead>
+  <thead>{th("Date", "Client", "Montant TTC", "Facture(s)")}</thead>
   <tbody>{wire_rows}</tbody>
 </table>
 

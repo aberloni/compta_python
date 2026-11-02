@@ -1,9 +1,12 @@
 """
 Generate exports/view/bills_edit.html — édition des factures.
 
-One tab per project. Each tab lists that project's bills with editable
-start/end period fields (saved via app_gui.py's update_bill_range()), plus a
-form to add a new bill for that project (add_bill()). Only the period is
+Two levels of tabs: years first (bill date, most recent first), then the
+projects that have at least one bill dated that year (most recently active that
+year first). Each (year, project) tab lists that project's bills of that year
+with editable start/end period fields (saved via app_gui.py's
+update_bill_range()). The "+" form adds a bill to any project, picked in a
+list (add_bill()). Only the period is
 editable here — forfait/frais/label overrides stay file-only, edited by hand.
 """
 
@@ -25,6 +28,7 @@ except locale.Error:
 
 import os
 from datetime import datetime
+from html import escape
 
 import configs
 from packages.database.database import Database
@@ -38,7 +42,7 @@ wiring = Wiring()
 
 # full UIDs of bills that already have at least one wire linked to them --
 # those can't be deleted (see tools/bill_editor.py: delete_bill())
-linked_fuids = {w.bill_fuid for w in wiring.wires if w.bill_fuid}
+linked_fuids = wiring.linked_fuids()
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -51,10 +55,11 @@ def fmt_days(v):
 def th(*cols):
     return "<tr>" + "".join(f"<th>{c}</th>" for c in cols) + "</tr>"
 
-# ─── per-project tab ────────────────────────────────────────────────────────
+# ─── per-(year, project) tab ────────────────────────────────────────────────
 
-def build_project_tab(p):
-    bills = sorted(p.bills, key=lambda b: b.uid, reverse=True)
+def build_project_tab(p, bills):
+    """Table of `bills` (one project's bills of one year), most recent first."""
+    bills = sorted(bills, key=lambda b: b.uid, reverse=True)
 
     rows = ""
     for b in bills:
@@ -115,18 +120,50 @@ def build_project_tab(p):
 
 # ─── build tabs ───────────────────────────────────────────────────────────────
 
-projects = sorted(db.projects, key=lambda p: p.name)
+def bill_date(b):
+    return datetime.strptime(b.uid, "%Y-%m-%d")
 
-tabs_nav = ""
+def last_activity(p, year=None):
+    """Most recent date among the project's tasks and bill dates (limited to
+    `year` when given), None if there is none."""
+    dates = [t.date for t in p.tasks] + [bill_date(b) for b in p.bills]
+    if year is not None:
+        dates = [d for d in dates if d.year == year]
+    return max(dates, default=None)
+
+def by_activity(projects, year=None):
+    """Most recently active first; ties and projects with no activity by name."""
+    out = sorted(projects, key=lambda p: p.name)
+    out.sort(key=lambda p: last_activity(p, year) or datetime.min, reverse=True)
+    return out
+
+# years that have at least one bill (bill date), most recent first
+years = sorted({bill_date(b).year for p in db.projects for b in p.bills}, reverse=True)
+
+years_nav = ""
+projects_navs = ""
 tabs_content = ""
-for i, p in enumerate(projects):
-    tid = f"tab-{p.uid}"
-    active = "active" if i == 0 else ""
-    tabs_nav     += f'<button class="tab-btn {active}" onclick="showTab(\'{tid}\')" id="btn-{tid}">{p.name}</button>'
-    tabs_content += f'<div class="tab-panel {active}" id="{tid}" data-project="{p.uid}">{build_project_tab(p)}</div>'
+for yi, year in enumerate(years):
+    year_active = "active" if yi == 0 else ""
+    years_nav += f'<button class="year-btn {year_active}" onclick="showYear({year})" id="year-btn-{year}">{year}</button>'
 
-first_project_uid = projects[0].uid if projects else ""
-project_names_js = "{" + ",".join(f'"{p.uid}":"{p.name}"' for p in projects) + "}"
+    year_projects = by_activity([p for p in db.projects if any(bill_date(b).year == year for b in p.bills)], year)
+    nav = ""
+    for pi, p in enumerate(year_projects):
+        tid = f"tab-{year}-{p.uid}"
+        active = "active" if yi == 0 and pi == 0 else ""
+        year_bills = [b for b in p.bills if bill_date(b).year == year]
+        nav += f'<button class="tab-btn {active}" onclick="showTab(\'{tid}\')" id="btn-{tid}">{escape(p.name)}</button>'
+        tabs_content += (f'<div class="tab-panel {active}" id="{tid}" data-year="{year}" data-project="{p.uid}">'
+                         f'{build_project_tab(p, year_bills)}</div>')
+    projects_navs += f'<div class="tabs-nav projects-nav {year_active}" id="projects-nav-{year}">{nav}</div>'
+
+if not years:
+    tabs_content = '<p class="empty">Aucune facture — ajoutez-en une avec le bouton +.</p>'
+
+# "+" form: every project, most recently active first (incl. those without bills)
+all_projects = by_activity(db.projects)
+project_options = "".join(f'<option value="{p.uid}">{escape(p.name)}</option>' for p in all_projects)
 
 # ─── assemble ─────────────────────────────────────────────────────────────────
 
@@ -251,7 +288,8 @@ async function deleteBill(btn) {
 function openAddBillModal() {
   const overlay = document.getElementById('add-bill-overlay');
   const status = document.getElementById('add-bill-status');
-  document.getElementById('add-bill-project-name').textContent = PROJECT_NAMES[currentProjectUid] || currentProjectUid;
+  const select = document.getElementById('add-bill-project');
+  if (currentProjectUid) select.value = currentProjectUid;
   document.getElementById('add-bill-date').value = '';
   document.getElementById('add-bill-start').value = '';
   document.getElementById('add-bill-end').value = '';
@@ -300,7 +338,7 @@ async function submitAddBill(btn) {
     status.className = 'add-status err';
     return false;
   }
-  const projectUid = currentProjectUid;
+  const projectUid = document.getElementById('add-bill-project').value;
   const date  = document.getElementById('add-bill-date').value.trim();
   const start = document.getElementById('add-bill-start').value.trim();
   const end   = document.getElementById('add-bill-end').value.trim();
@@ -317,6 +355,8 @@ async function submitAddBill(btn) {
   if (result && result.ok) {
     status.textContent = 'Facture ajoutée ✓';
     status.className = 'add-status ok';
+    // reopen on the new bill's year + project after the reload
+    rememberSelection(date.slice(0, 4), projectUid);
     await reloadAfterEdit();
   } else {
     status.textContent = 'Erreur : ' + (result && result.error || '?');
@@ -346,6 +386,13 @@ page_style = """
   .tab-btn.active { background: #222; color: #fff; border-color: #222; }
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
+  .projects-nav { display: none; }
+  .projects-nav.active { display: flex; }
+  .years-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+  .year-btn { padding: 7px 16px; border: none; border-radius: 6px; background: #e8e8e8;
+               cursor: pointer; font-size: 13px; font-weight: 600; color: #555; font-family: inherit; }
+  .year-btn:hover { background: #ddd; }
+  .year-btn.active { background: #222; color: #fff; }
 
   /* table */
   table { width: 100%; border-collapse: collapse; background: #fff;
@@ -413,7 +460,9 @@ page_style = """
   .modal input { padding: 7px 9px; border: 1px solid #ddd; border-radius: 5px;
                   font-size: 13px; font-family: inherit; }
   .modal input:focus { outline: none; border-color: #888; }
-  .modal-project-name { padding: 7px 0; font-size: 14px; font-weight: 600; color: #333; }
+  .modal select { padding: 7px 9px; border: 1px solid #ddd; border-radius: 5px; background: #fff;
+                   font-size: 13px; font-family: inherit; color: #222; text-transform: none; }
+  .modal select:focus { outline: none; border-color: #888; }
   .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
   .modal-actions button { padding: 7px 16px; border: none; border-radius: 20px;
                             cursor: pointer; font-size: 12px; font-weight: 600; }
@@ -440,7 +489,8 @@ body_content = f"""
 </div>
 <div class="meta">Généré le {generated_at} — les dates acceptent AAAA-MM-JJ, AAAA-MM ou AAAA</div>
 
-<div class="tabs-nav">{tabs_nav}</div>
+<div class="years-nav">{years_nav}</div>
+{projects_navs}
 
 {tabs_content}
 
@@ -478,7 +528,7 @@ frais:Déplacement,150,2       <span class="c">ligne en plus : libellé, prix un
   <div class="modal">
     <h3>Ajouter une facture</h3>
     <label>Projet
-      <div id="add-bill-project-name" class="modal-project-name"></div>
+      <select id="add-bill-project">{project_options}</select>
     </label>
     <label>Date facture
       <input type="text" id="add-bill-date" placeholder="AAAA-MM-JJ">
@@ -500,8 +550,27 @@ frais:Déplacement,150,2       <span class="c">ligne en plus : libellé, prix un
 <script>{RELOAD_SCRIPT}</script>
 
 <script>
-const PROJECT_NAMES = {project_names_js};
-let currentProjectUid = "{first_project_uid}";
+let currentProjectUid = "";
+
+// selected year + project survive the reload that follows a save / delete / add
+const SELECTION_KEY = 'bills_edit::selection';
+function rememberSelection(year, projectUid) {{
+  try {{ sessionStorage.setItem(SELECTION_KEY, JSON.stringify({{ year: String(year), project: projectUid }})); }} catch (e) {{}}
+}}
+
+function showYear(year) {{
+  const nav = document.getElementById('projects-nav-' + year);
+  if (!nav) return;
+  document.querySelectorAll('.year-btn').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.projects-nav').forEach(el => el.classList.remove('active'));
+  document.getElementById('year-btn-' + year).classList.add('active');
+  nav.classList.add('active');
+  // keep the same project when it also has bills that year, else the first one
+  const same = document.getElementById('tab-' + year + '-' + currentProjectUid);
+  const first = nav.querySelector('.tab-btn');
+  if (same) showTab(same.id);
+  else if (first) showTab(first.id.slice(4));  // "btn-tab-..." -> "tab-..."
+}}
 
 function showTab(id) {{
   document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
@@ -510,7 +579,19 @@ function showTab(id) {{
   panel.classList.add('active');
   document.getElementById('btn-' + id).classList.add('active');
   currentProjectUid = panel.dataset.project;
+  rememberSelection(panel.dataset.year, currentProjectUid);
 }}
+
+(function restoreSelection() {{
+  let saved = null;
+  try {{ saved = JSON.parse(sessionStorage.getItem(SELECTION_KEY)); }} catch (e) {{}}
+  const active = document.querySelector('.tab-panel.active');
+  if (active) currentProjectUid = active.dataset.project;
+  if (saved && document.getElementById('projects-nav-' + saved.year)) {{
+    currentProjectUid = saved.project || currentProjectUid;
+    showYear(saved.year);
+  }}
+}})();
 </script>
 """
 
@@ -526,8 +607,9 @@ with open(out_path, "w", encoding="utf-8") as f:
     f.write(html)
 
 print(f"\n── bills_edit ──")
-print(f"projets  : {len(projects)}")
-print(f"factures : {sum(len(p.bills) for p in projects)}")
+print(f"années   : {len(years)}")
+print(f"projets  : {len(db.projects)}")
+print(f"factures : {sum(len(p.bills) for p in db.projects)}")
 print(f"\nview @ {out_path}")
 
 if hasattr(os, "startfile") and not configs.webview_mode:

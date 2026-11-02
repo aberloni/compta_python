@@ -44,15 +44,11 @@ for p in db.projects:
 
 all_bills.sort(key=lambda x: x[1].uid)
 
-# paid_by_fuid[fuid] = list of wires that reference it (same matching as
+# paid_by_fuid[fuid] = payments it received, its share of each wire (same matching as
 # wiring.py / tva.py: a bill counts as paid once its wires cover its TTC,
 # and its "paid date" is the date of the wire that completed that payment)
 known_uids   = {c.uid for c in db.clients}
-known_wires  = [w for w in wiring.wires if w.client_uid in known_uids]
-paid_by_fuid = defaultdict(list)
-for w in known_wires:
-    if w.bill_fuid:
-        paid_by_fuid[w.bill_fuid].append(w)
+paid_by_fuid = wiring.payments_by_fuid(db, known_uids)
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -172,6 +168,13 @@ def render_tab(bills_slice, year=None):
           <td class="num">{fmt_days(d['days'])}</td>
           <td class="num">{fmt_eur(d['ht'])}</td>
           <td class="num">{fmt_eur(d['ttc'])}</td>
+        </tr>"""
+    if by_month:
+        month_rows += f"""<tr class="total-row">
+          <td>Total</td>
+          <td class="num">{fmt_days(total_days)}</td>
+          <td class="num">{fmt_eur(total_ht)}</td>
+          <td class="num">{fmt_eur(total_ttc)}</td>
         </tr>"""
 
     # by client
@@ -308,7 +311,62 @@ def render_tab(bills_slice, year=None):
         </table>
       </div>
     </div>
+    {render_unbilled(year, total_days)}
     """
+
+# ─── unbilled tasks ───────────────────────────────────────────────────────────
+
+def render_unbilled(year=None, billed_days=0.0):
+    """Build the "Jours non facturés" section for one tab: tasks not covered by
+    any bill, limited to `year` (task date) when given (year=None: "Tout").
+    `billed_days` is the tab's own billed total (same as its "Jours facturés" card)."""
+    unbilled_rows = ""
+    total_unbilled_days = 0.0
+
+    for p in db.projects:
+        billed_task_ids = {id(t) for b in p.bills for t in b.tasks}
+        unbilled = [t for t in p.tasks
+                    if id(t) not in billed_task_ids and (year is None or t.date.year == year)]
+        if not unbilled:
+            continue
+
+        unbilled.sort(key=lambda t: t.date)
+        days = sum(t.getTimeSpent() for t in unbilled)
+        total_unbilled_days += days
+
+        taux = p.getTaux(unbilled[-1].date)  # taux at latest unbilled task
+        estimated_ht = days * taux
+
+        months_str = ", ".join(sorted({t.date.strftime("%Y-%m") for t in unbilled}))
+        client = p.getClient()
+
+        unbilled_rows += f"""<tr>
+          <td>{p.name}</td>
+          <td>{client.name if client else "?"}</td>
+          <td class="num">{fmt_days(days)}</td>
+          <td>{months_str}</td>
+          <td class="num">{taux}&nbsp;€/j</td>
+          <td class="num est">{fmt_eur(estimated_ht)}</td>
+        </tr>"""
+
+    unbilled_cards = f"""<div class="cards unbilled-cards">
+      {card("Jours facturés", fmt_days(billed_days))}
+      {card("Jours non facturés", fmt_days(total_unbilled_days))}
+    </div>"""
+
+    if not unbilled_rows:
+        return f"""
+    <h2 class="unbilled-title">Jours non facturés</h2>
+    {unbilled_cards}
+    <p class="all-billed">Tout est facturé ✓</p>"""
+
+    return f"""
+    <h2 class="unbilled-title">Jours non facturés</h2>
+    {unbilled_cards}
+    <table>
+      <thead>{th("Projet", "Client", "Jours", "Mois", "Taux", "Estimé HT")}</thead>
+      <tbody>{unbilled_rows}</tbody>
+    </table>"""
 
 # ─── build tabs ───────────────────────────────────────────────────────────────
 
@@ -329,58 +387,6 @@ for i, year in enumerate(years_with_bills):
 tid = "tab-all"
 tabs_nav     += f'<button class="tab-btn" onclick="showTab(\'{tid}\')" id="btn-{tid}">Tout</button>'
 tabs_content += f'<div class="tab-panel" id="{tid}">{render_tab(all_bills)}</div>'
-
-# ─── unbilled tasks ───────────────────────────────────────────────────────────
-
-# collect all task dates covered by at least one bill per project
-unbilled_rows = ""
-total_unbilled_days = 0.0
-
-for p in db.projects:
-    billed_task_ids = set()
-    for b in p.bills:
-        for t in b.tasks:
-            billed_task_ids.add(id(t))
-
-    unbilled = [t for t in p.tasks if id(t) not in billed_task_ids]
-    if not unbilled:
-        continue
-
-    unbilled.sort(key=lambda t: t.date)
-    days = sum(t.getTimeSpent() for t in unbilled)
-    total_unbilled_days += days
-
-    taux = p.getTaux(unbilled[-1].date)  # taux at latest unbilled task
-    estimated_ht = days * taux
-
-    months_str = ", ".join(sorted({t.date.strftime("%Y-%m") for t in unbilled}))
-    client = p.getClient()
-
-    unbilled_rows += f"""<tr>
-      <td>{p.name}</td>
-      <td>{client.name if client else "?"}</td>
-      <td class="num">{fmt_days(days)}</td>
-      <td>{months_str}</td>
-      <td class="num">{taux}&nbsp;€/j</td>
-      <td class="num est">{fmt_eur(estimated_ht)}</td>
-    </tr>"""
-
-total_billed_days = sum(b.countDays() for _, b in all_bills)
-unbilled_cards = f"""<div class="cards unbilled-cards">
-  {card("Jours facturés", fmt_days(total_billed_days))}
-  {card("Jours non facturés", fmt_days(total_unbilled_days))}
-</div>"""
-
-unbilled_section = f"""
-<h2 class="unbilled-title">Jours non facturés</h2>
-{unbilled_cards}
-<table>
-  <thead>{th("Projet", "Client", "Jours", "Mois", "Taux", "Estimé HT")}</thead>
-  <tbody>{unbilled_rows or '<tr><td colspan="6" class="empty">Tout est facturé ✓</td></tr>'}</tbody>
-</table>""" if unbilled_rows else f"""
-<h2 class="unbilled-title">Jours non facturés</h2>
-{unbilled_cards}
-<p class="all-billed">Tout est facturé ✓</p>"""
 
 # ─── assemble ─────────────────────────────────────────────────────────────────
 
@@ -458,7 +464,6 @@ body_content = f"""
 
 {tabs_content}
 
-{unbilled_section}
 
 <script>
 function showTab(id) {{

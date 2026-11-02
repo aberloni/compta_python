@@ -214,6 +214,38 @@ function restartApp() {
   }
   return false;
 }
+// nav "save" icon: same backup as the Sauvegarde page's "Sauvegarder maintenant"
+// (zip database/ + copy to the extra zip folders). Turns green for a few
+// seconds on success and updates the footer's "Dernière sauvegarde" in place.
+async function backupNow() {
+  if (!(window.pywebview && window.pywebview.api)) {
+    alert("Indisponible en dehors de l'application.");
+    return false;
+  }
+  const btn = document.getElementById('backup-btn');
+  btn.disabled = true;
+  document.body.style.cursor = 'wait';
+  let result = null;
+  try { result = await window.pywebview.api.backup_database(); } catch (e) { result = { ok: false, error: String(e) }; }
+  btn.disabled = false;
+  document.body.style.cursor = '';
+  if (!(result && result.ok)) {
+    alert('Sauvegarde impossible : ' + (result && result.error || '?'));
+    return false;
+  }
+  const failed = result.failed || [];
+  if (failed.length) {
+    alert('Sauvegarde créée, mais copie impossible vers : ' + failed.map(f => f.folder + ' (' + f.error + ')').join(', '));
+  }
+  // the Sauvegarde page lists the zips: regenerate it to show the new one
+  if (CURRENT_FILE === 'backups.html') return navigateTo('backups.html');
+  const footer = document.getElementById('footer-backup');
+  if (footer && result.summary) footer.textContent = result.summary;
+  btn.classList.add('active');
+  btn.title = 'Sauvegarde créée : ' + result.path.split(/[\\\\/]/).pop();
+  setTimeout(function () { btn.classList.remove('active'); btn.title = 'Sauvegarder (zip de la base)'; }, 4000);
+  return false;
+}
 function navigateTo(file) {
   if (window.pywebview && window.pywebview.api) {
     document.body.style.cursor = 'wait';
@@ -229,7 +261,17 @@ let autoRefreshOn = true;
 function updateAutoRefreshBtn() {
   const btn = document.getElementById('auto-refresh-btn');
   btn.classList.toggle('active', autoRefreshOn);
-  btn.title = 'Auto refresh : ' + (autoRefreshOn ? 'activé' : 'désactivé');
+  btn.title = autoRefreshOn
+    ? 'Auto refresh : activé\\n'
+      + 'Chaque page est recalculée à partir de la base avant d\\'être affichée : '
+      + 'chiffres toujours à jour, ouverture un peu plus lente.\\n'
+      + 'Cliquer pour désactiver.'
+    : 'Auto refresh : désactivé\\n'
+      + 'Les pages affichent le dernier calcul enregistré, sans recalculer : '
+      + 'ouverture rapide, mais les chiffres peuvent être périmés si la base a changé. '
+      + 'Une page jamais générée est quand même calculée.\\n'
+      + 'Cliquer pour activer.';
+  btn.title += '\\n(Revient sur « activé » au redémarrage de l\\'app.)';
 }
 function toggleAutoRefresh() {
   autoRefreshOn = !autoRefreshOn;
@@ -238,6 +280,7 @@ function toggleAutoRefresh() {
     window.pywebview.api.set_auto_refresh(autoRefreshOn);
   }
 }
+updateAutoRefreshBtn();
 window.addEventListener('pywebviewready', function () {
   window.pywebview.api.get_auto_refresh().then(function (value) {
     autoRefreshOn = value;
@@ -304,6 +347,9 @@ def render_shell(title, active_file, body_html, extra_style=""):
       <button id="auto-refresh-btn" class="icon-toggle active" onclick="toggleAutoRefresh()" title="Auto refresh : activé">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
       </button>
+      <button id="backup-btn" class="icon-toggle" onclick="return backupNow()" title="Sauvegarder (zip de la base)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+      </button>
       <button id="restart-btn" class="icon-toggle" onclick="return restartApp()" title="Redémarrer l'application">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3h-2v10h2V3zm4.83 2.17-1.42 1.42A6.92 6.92 0 0 1 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.24 1.06-4.24 2.71-5.42L6.29 5.17A8.93 8.93 0 0 0 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9a8.93 8.93 0 0 0-3.17-6.83z"/></svg>
       </button>
@@ -319,7 +365,7 @@ def render_shell(title, active_file, body_html, extra_style=""):
 
     <div class="app-footer">
       compta_python — vue générée localement
-      <div class="app-footer-extra">Dernière sauvegarde : <a href="backups.html" onclick="return navigateTo('backups.html')">{backup_text}</a></div>
+      <div class="app-footer-extra">Dernière sauvegarde : <a id="footer-backup" href="backups.html" onclick="return navigateTo('backups.html')">{backup_text}</a></div>
     </div>
   </div>
 </div>

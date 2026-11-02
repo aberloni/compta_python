@@ -138,7 +138,7 @@ def delete_bill(project_uid, bill_uid):
         return {"ok": False, "error": f"facture {bill_uid} introuvable pour ce projet"}
 
     fuid = bill.getFullUid() or bill.uid
-    linked = [w for w in Wiring().wires if w.bill_fuid == fuid]
+    linked = [w for w in Wiring().wires if fuid in w.bill_fuids]
     if linked:
         return {"ok": False, "error": f"{len(linked)} virement(s) déjà associé(s) à cette facture -- suppression impossible"}
 

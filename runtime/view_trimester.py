@@ -52,13 +52,9 @@ impots = Impots()
 urssaf_decls = UrssafDeclarations()
 
 known_uids  = {c.uid for c in db.clients}
-known_wires = [w for w in wiring.wires if w.client_uid in known_uids]
 
-# paid_by_fuid[fuid] = list of wires that reference it
-paid_by_fuid = defaultdict(list)
-for w in known_wires:
-    if w.bill_fuid:
-        paid_by_fuid[w.bill_fuid].append(w)
+# paid_by_fuid[fuid] = payments it received (its share of each wire, see wiring.py)
+paid_by_fuid = wiring.payments_by_fuid(db, known_uids)
 
 all_bills = []
 for p in db.projects:
@@ -194,11 +190,27 @@ if trim_rows:
 
 # ─── table 2 : détail des encaissements ────────────────────────────────────────
 
-detail_rows = ""
-for w_date, trim, client_name, fuid, project_name, ht, cotisations, cfp, liberatoire, total in details:
-    detail_rows += f"""<tr>
+# one table per trimester, most recent first, each with its own total row
+
+TRIM_MONTHS = {1: "janv. – mars", 2: "avr. – juin", 3: "juil. – sept.", 4: "oct. – déc."}
+
+details_by_trim = defaultdict(list)
+for d in details:
+    details_by_trim[d[1]].append(d)
+
+def _trim_key(t):
+    year, q = t.split("-T")
+    return int(year), int(q)
+
+detail_tables = ""
+for trim in sorted(details_by_trim, key=_trim_key, reverse=True):
+    rows = ""
+    sums = [0.0] * 5  # ht, cotisations, cfp, liberatoire, total
+    for w_date, _trim, client_name, fuid, project_name, ht, cotisations, cfp, liberatoire, total in details_by_trim[trim]:
+        for i, v in enumerate((ht, cotisations, cfp, liberatoire, total)):
+            sums[i] += v
+        rows += f"""<tr>
       <td>{w_date:%Y-%m-%d}</td>
-      <td>{trim}</td>
       <td class="mono">{fuid}</td>
       <td>{client_name}</td>
       <td>{project_name}</td>
@@ -208,6 +220,25 @@ for w_date, trim, client_name, fuid, project_name, ht, cotisations, cfp, liberat
       <td class="num">{fmt(liberatoire)}</td>
       <td class="num charges">{fmt(total)}</td>
     </tr>"""
+    count = len(details_by_trim[trim])
+    rows += f"""<tr class="total-row">
+      <td>Total</td>
+      <td colspan="3">{count} encaissement{'s' if count > 1 else ''}</td>
+      <td class="num">{fmt(sums[0])}</td>
+      <td class="num">{fmt(sums[1])}</td>
+      <td class="num">{fmt(sums[2])}</td>
+      <td class="num">{fmt(sums[3])}</td>
+      <td class="num charges">{fmt(sums[4])}</td>
+    </tr>"""
+    detail_tables += f"""
+<h3 class="trim-title">{trim} <span class="trim-months">{TRIM_MONTHS[_trim_key(trim)[1]]}</span></h3>
+<table data-default-sort="0:asc">
+  <thead>{th("Date virement", "Facture", "Client", "Projet", "HT", "Cotisations", "CFP", "Libératoire", "Total")}</thead>
+  <tbody>{rows}</tbody>
+</table>"""
+
+if not detail_tables:
+    detail_tables = '<p class="empty">Aucun encaissement</p>'
 
 # ─── summary cards ────────────────────────────────────────────────────────────
 
@@ -257,6 +288,8 @@ page_style = """
   .empty-trim .charges { color: #ddd; }
   .total-row td { font-weight: 600; background: #f7f7f7; border-top: 2px solid #e0e0e0; }
   .empty { color: #bbb; font-style: italic; }
+  .trim-title { font-size: 14px; font-weight: 700; color: #333; margin: 22px 0 8px; }
+  .trim-months { font-size: 12px; font-weight: 500; color: #999; margin-left: 6px; }
 
   .page-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
   .ext-btn { margin-left: auto; padding: 7px 16px; border-radius: 16px; background: #222; color: #fff;
@@ -291,10 +324,7 @@ body_content = f"""
 </table>
 
 <h2>Détail des encaissements</h2>
-<table data-default-sort="0:asc">
-  <thead>{th("Date virement", "Trimestre", "Facture", "Client", "Projet", "HT", "Cotisations", "CFP", "Libératoire", "Total")}</thead>
-  <tbody>{detail_rows or '<tr><td colspan="10" class="empty">Aucun encaissement</td></tr>'}</tbody>
-</table>
+{detail_tables}
 
 <script>
 function openUrssafFile() {{

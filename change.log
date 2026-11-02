@@ -101,3 +101,14 @@ Simple list of changes, grouped by day.
 - Fixed the bank statement PDF converter, which looked for the statements in the wrong folder since it was moved.
 - Added a "?" button next to the "+" on the Éditer factures page that shows a reminder of everything that can be written in an invoice file (dates, fixed price, day count, extra costs, labels…).
 - The Éditer factures page now shows a total line at the bottom of each project's table: number of invoices, days, amount before tax and amount with tax.
+
+## 2026-10-11
+- The "Par mois" table of the billing page now ends with a total line (days, amount before tax, amount with tax).
+- On the billing page, the "Jours non facturés" section is now shown in each year tab and only counts that year (days invoiced that year, and days worked that year that are not invoiced yet). The "Tout" tab still shows everything.
+- On the Éditer factures page, the project tabs are now ordered by most recent activity (latest task or invoice first), and the most recent project opens by default.
+- The Éditer factures page now first shows the years, then only the projects that have an invoice that year, with only that year's invoices. After saving, deleting or adding an invoice, the page stays on the same year and project.
+- The form to add an invoice now lets you choose which project it belongs to.
+- On the Trimestres page, the payments detail is now split into one table per quarter (most recent first), each with its own total.
+- The tooltip on the "auto refresh" button now explains what the switch does in each position (fresh but slower, or fast but possibly out of date) and that it turns back on when the app restarts.
+- Added a save button at the bottom of the side menu, next to the restart button, that makes a backup of all the data from any page (same as "Sauvegarder maintenant" on the Sauvegarde page).
+- On the Virements page, one bank transfer can now be linked to several invoices (a "+" button adds another invoice). The amount is shared between them in the order given: each invoice gets what it still owes, the last one gets the rest. All the pages (billing, TVA, quarters) take this into account.

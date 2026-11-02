@@ -47,13 +47,9 @@ wiring = Wiring()
 tva_decls = TvaDeclarations()
 
 known_uids  = {c.uid for c in db.clients}
-known_wires = [w for w in wiring.wires if w.client_uid in known_uids]
 
-# paid_by_fuid[fuid] = list of wires that reference it
-paid_by_fuid = defaultdict(list)
-for w in known_wires:
-    if w.bill_fuid:
-        paid_by_fuid[w.bill_fuid].append(w)
+# paid_by_fuid[fuid] = payments it received (its share of each wire, see wiring.py)
+paid_by_fuid = wiring.payments_by_fuid(db, known_uids)
 
 all_bills = []
 for p in db.projects:
