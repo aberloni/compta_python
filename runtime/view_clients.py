@@ -3,7 +3,7 @@ Generate exports/view/clients.html — édition des clients.
 
 One tab per client (same "pick one, see only that one" pattern as the other
 pages' project tabs). Each tab shows that client's editable fields (name,
-address, creditor, country, tva number, color), saved via app_gui.py's
+address, creditor, country, siren, siret, tva number, color), saved via app_gui.py's
 update_client(). A "+" button opens a modal to add a new client
 (add_client()). uid is never editable here -- it's the filename itself, and
 projects/ + wiring/ files reference it (see tools/client_editor.py).
@@ -26,6 +26,7 @@ except locale.Error:
     locale.setlocale(locale.LC_ALL, '')
 
 import os
+import re
 from datetime import datetime
 
 import configs
@@ -69,23 +70,43 @@ country_datalist = "<datalist id=\"country-list\">" + "".join(
 # ─── per-client tab ───────────────────────────────────────────────────────────
 
 def split_address(address):
-    """(street, city) from the stored 'street|city' address, city empty if no '|'."""
-    street, sep, city = (address or "").partition("|")
-    return street, city
+    """(street, postal code, city) from the stored 'street|CP ville' address.
+    The last '|' line is the postal code + city; an address without '|'
+    (older hand-written ones) gets its trailing "CP ville" guessed instead,
+    or stays whole in street if none is found."""
+    address = (address or "").strip()
+    if "|" in address:
+        street, _, last = address.rpartition("|")
+        m = re.match(r"^(\S*\d\S*)\s+(.+)$", last.strip())
+        return (street, m.group(1), m.group(2)) if m else (street, "", last.strip())
+    m = re.match(r"^(.*?)[,\s]+(\d{4,5})\s+(\D+)$", address)
+    return (m.group(1), m.group(2), m.group(3).strip()) if m else (address, "", "")
+
+def nic_of(siret):
+    """The 5 digits ending a SIRET (after the 9-digit SIREN), '' if none."""
+    return "".join(ch for ch in (siret or "") if ch.isdigit())[9:]
 
 def build_client_panel(c):
     projects = project_names_for(c.uid)
     projects_cell = ", ".join(projects) if projects else '<span class="empty">aucun</span>'
     picker_value = c.color if c.color else "#cccccc"
-    street, city = split_address(c.address)
+    street, cp, city = split_address(c.address)
 
     return f"""<div class="client-form" data-uid="{c.uid}">
       {field("UID", f'<div class="mono">{c.uid}</div>')}
       {field("Nom", f'<input type="text" class="edit-input name-input" value="{esc(c.name)}">')}
       {field("Adresse", f'<input type="text" class="edit-input address-street-input" value="{esc(street)}" placeholder="12-14 rue Jean-Jacques Rousseau">')}
-      {field("Ville", f'<input type="text" class="edit-input address-city-input" value="{esc(city)}" placeholder="93100 MONTREUIL">')}
+      {field("Code postal / Ville", f'''<div class="cp-row">
+        <input type="text" class="edit-input address-cp-input" value="{esc(cp)}" placeholder="93100">
+        <input type="text" class="edit-input address-city-input" value="{esc(city)}" placeholder="MONTREUIL">
+      </div>''')}
       {field("Creditor (libellé relevé bancaire)", f'<input type="text" class="edit-input creditor-input" value="{esc(c.creditor)}">')}
       {field("Pays", f'<input type="text" class="edit-input country-input narrow" list="country-list" value="{esc(c.country)}" placeholder="FR">')}
+      {field("SIREN / fin du SIRET", f'''<div class="id-row">
+        <input type="text" class="edit-input siren-input" value="{esc(c.siren)}" placeholder="123456789" title="SIREN (9 chiffres)">
+        <input type="text" class="edit-input nic-input" value="{esc(nic_of(c.siret))}" placeholder="00012" title="Fin du SIRET (5 chiffres)">
+        <button class="source-btn" onclick="return openDirectory(this)" title="Chercher le nom du client sur annuaire-entreprises.data.gouv.fr">Annuaire</button>
+      </div>''')}
       {field("N° TVA", f'<input type="text" class="edit-input tva-input" value="{esc(c.tva_number)}">')}
       {field("Couleur", f'''<div class="color-cell">
         <input type="color" class="color-picker" value="{picker_value}" oninput="return syncColorFromPicker(this)">
@@ -94,6 +115,7 @@ def build_client_panel(c):
       {field("Projets", f'<div>{projects_cell}</div>')}
       <div class="actions">
         <button class="save-btn" onclick="return saveClient(this)">Enregistrer</button>
+        <button class="source-btn" onclick="return openClientFile(this)" title="Ouvre {c.uid}.cli, le fichier source de ce client">Source</button>
         <span class="row-status"></span>
       </div>
     </div>"""
@@ -123,6 +145,25 @@ function showTab(id) {
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.getElementById('btn-' + id).classList.add('active');
+}
+
+function openDirectory(btn) {
+  const scope = btn.closest('.client-form, .modal');
+  const name = scope.querySelector('.name-input, #add-client-name').value.trim();
+  if (window.pywebview && window.pywebview.api) {
+    window.pywebview.api.open_company_directory(name);
+  }
+  return false;
+}
+
+function joinAddress(street, cp, city) {
+  const last = [cp, city].filter(Boolean).join(' ');
+  return last ? street + '|' + last : street;
+}
+
+function buildSiret(siren, nic) {
+  nic = nic.replace(/\\s/g, '');
+  return nic ? siren.replace(/\\s/g, '') + nic : '';
 }
 
 const HEX_COLOR_RE = /^#([0-9a-f]{6}|[0-9a-f]{3})$/i;
@@ -158,10 +199,19 @@ async function saveClient(btn) {
   const uid = form.dataset.uid;
   const name = form.querySelector('.name-input').value.trim();
   const street = form.querySelector('.address-street-input').value.trim();
+  const cp = form.querySelector('.address-cp-input').value.trim();
   const city = form.querySelector('.address-city-input').value.trim();
-  const address = city ? street + '|' + city : street;
+  const address = joinAddress(street, cp, city);
   const creditor = form.querySelector('.creditor-input').value.trim();
   const country = form.querySelector('.country-input').value.trim();
+  const siren = form.querySelector('.siren-input').value.trim();
+  const nic = form.querySelector('.nic-input').value.trim();
+  if (nic && !siren) {
+    status.textContent = 'Le SIREN est requis pour compléter le SIRET.';
+    status.className = 'row-status err';
+    return false;
+  }
+  const siret = buildSiret(siren, nic);
   const tva = form.querySelector('.tva-input').value.trim();
   const color = form.querySelector('.color-input').value.trim();
   if (!name || !street) {
@@ -172,7 +222,7 @@ async function saveClient(btn) {
   btn.disabled = true;
   status.textContent = '';
   status.className = 'row-status';
-  const result = await window.pywebview.api.update_client(uid, name, address, creditor, country, tva, color);
+  const result = await window.pywebview.api.update_client(uid, name, address, creditor, country, siren, siret, tva, color);
   btn.disabled = false;
   if (result && result.ok) {
     status.textContent = 'Enregistré ✓';
@@ -185,10 +235,25 @@ async function saveClient(btn) {
   return false;
 }
 
+async function openClientFile(btn) {
+  const form = btn.closest('.client-form');
+  const status = form.querySelector('.row-status');
+  if (!(window.pywebview && window.pywebview.api)) {
+    status.textContent = "Indisponible en dehors de l'application.";
+    return false;
+  }
+  const result = await window.pywebview.api.open_client_file(form.dataset.uid);
+  if (!(result && result.ok)) {
+    status.textContent = 'Erreur : ' + (result && result.error || '?');
+    status.className = 'row-status err';
+  }
+  return false;
+}
+
 function openAddClientModal() {
   const overlay = document.getElementById('add-client-overlay');
   const status = document.getElementById('add-client-status');
-  ['uid', 'name', 'address-street', 'address-city', 'creditor', 'country', 'tva', 'color'].forEach(function (id) {
+  ['uid', 'name', 'address-street', 'address-cp', 'address-city', 'creditor', 'country', 'siren', 'nic', 'tva', 'color'].forEach(function (id) {
     document.getElementById('add-client-' + id).value = '';
   });
   document.getElementById('add-client-color-picker').value = '#cccccc';
@@ -225,10 +290,19 @@ async function submitAddClient(btn) {
   const uid = document.getElementById('add-client-uid').value.trim();
   const name = document.getElementById('add-client-name').value.trim();
   const street = document.getElementById('add-client-address-street').value.trim();
+  const cp = document.getElementById('add-client-address-cp').value.trim();
   const city = document.getElementById('add-client-address-city').value.trim();
-  const address = city ? street + '|' + city : street;
+  const address = joinAddress(street, cp, city);
   const creditor = document.getElementById('add-client-creditor').value.trim();
   const country = document.getElementById('add-client-country').value.trim();
+  const siren = document.getElementById('add-client-siren').value.trim();
+  const nic = document.getElementById('add-client-nic').value.trim();
+  if (nic && !siren) {
+    status.textContent = 'Le SIREN est requis pour compléter le SIRET.';
+    status.className = 'add-status err';
+    return false;
+  }
+  const siret = buildSiret(siren, nic);
   const tva = document.getElementById('add-client-tva').value.trim();
   const color = document.getElementById('add-client-color').value.trim();
   if (!uid || !name || !street) {
@@ -239,7 +313,7 @@ async function submitAddClient(btn) {
   btn.disabled = true;
   status.textContent = '';
   status.className = 'add-status';
-  const result = await window.pywebview.api.add_client(uid, name, address, creditor, country, tva, color);
+  const result = await window.pywebview.api.add_client(uid, name, address, creditor, country, siren, siret, tva, color);
   btn.disabled = false;
   if (result && result.ok) {
     status.textContent = 'Client ajouté ✓';
@@ -281,6 +355,12 @@ page_style = """
                  font-size: 13px; font-family: inherit; }
   .edit-input:focus { outline: none; border-color: #888; }
   .edit-input.narrow { width: 100px; }
+  .id-row { display: flex; gap: 6px; align-items: center; }
+  .cp-row { display: flex; gap: 6px; }
+  .cp-row .address-cp-input, .modal .cp-row #add-client-address-cp { width: 90px; flex: none; }
+  .cp-row .address-city-input, .modal .cp-row #add-client-address-city { flex: 1; }
+  .id-row .edit-input, .modal .id-row input { width: 130px; }
+  .id-row .nic-input, .modal .id-row #add-client-nic { width: 80px; }
   .color-cell { display: flex; align-items: center; gap: 6px; }
   .color-picker { width: 32px; height: 32px; padding: 2px; border: 1px solid #ddd; border-radius: 5px;
                     cursor: pointer; flex-shrink: 0; background: #fff; }
@@ -290,6 +370,9 @@ page_style = """
                background: #222; color: #fff; cursor: pointer; font-size: 12px; font-weight: 600; }
   .save-btn:hover { background: #444; }
   .save-btn:disabled { opacity: .5; cursor: default; }
+  .source-btn { padding: 5px 13px; border: 1px solid #ddd; border-radius: 14px;
+                 background: #fff; color: #333; cursor: pointer; font-size: 12px; font-weight: 600; }
+  .source-btn:hover { background: #f0f0f0; }
   .row-status, .add-status { font-size: 12px; }
   .row-status.ok, .add-status.ok { color: #2e7d32; font-weight: 600; }
   .row-status.err, .add-status.err { color: #c62828; font-weight: 600; }
@@ -349,14 +432,24 @@ body_content = f"""
     <label>Adresse
       <input type="text" id="add-client-address-street" placeholder="12-14 rue Jean-Jacques Rousseau">
     </label>
-    <label>Ville
-      <input type="text" id="add-client-address-city" placeholder="93100 MONTREUIL">
+    <label>Code postal / Ville
+      <div class="cp-row">
+        <input type="text" id="add-client-address-cp" placeholder="93100">
+        <input type="text" id="add-client-address-city" placeholder="MONTREUIL">
+      </div>
     </label>
     <label>Creditor
       <input type="text" id="add-client-creditor" placeholder="DARJEELING SARL">
     </label>
     <label>Pays
       <input type="text" id="add-client-country" list="country-list" placeholder="FR">
+    </label>
+    <label>SIREN / fin du SIRET
+      <div class="id-row">
+        <input type="text" id="add-client-siren" placeholder="123456789" title="SIREN (9 chiffres)">
+        <input type="text" id="add-client-nic" placeholder="00012" title="Fin du SIRET (5 chiffres)">
+        <button class="source-btn" onclick="return openDirectory(this)" title="Chercher le nom du client sur annuaire-entreprises.data.gouv.fr">Annuaire</button>
+      </div>
     </label>
     <label>N° TVA
       <input type="text" id="add-client-tva" placeholder="BE1006963829">

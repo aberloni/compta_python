@@ -133,6 +133,8 @@ def generateHtml(project, bill, exportFileName):
     client_address = client.assoc.filterHtmlValue("address")
     if client.country != "FR":
         client_address += f" ({client.country})"
+    if client.siren:
+        client_address += f"<br/>SIREN : {client.siren}"
     if client.tva_number:
         client_address += f"<br/>TVA : {client.tva_number}"
     html = html.replace("{{client_address}}",    client_address)

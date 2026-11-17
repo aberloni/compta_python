@@ -18,6 +18,9 @@ class Client:
         self.address = self.assoc.filterKey("address")
         self.creditor = self.assoc.filterKey("creditor")
         self.country = (self.assoc.filterKey("country") or "FR").upper()
+        self.siret = self.assoc.filterKey("siret")
+        # no siren: line -> fall back to the first 9 digits of the siret: line
+        self.siren = self.assoc.filterKey("siren") or ("".join(ch for ch in (self.siret or "") if ch.isdigit())[:9] or None)
         self.tva_number = self.assoc.filterKey("tva")
         self.color = self.assoc.filterKey("color")
 

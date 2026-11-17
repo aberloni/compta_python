@@ -4,7 +4,7 @@ page's per-row save form and "add client" form (see app_gui.py:
 update_client() / add_client()).
 
 Client files are simple key:value lines (uid, name, address, creditor,
-country, tva, color). update_client() rewrites/removes/appends individual
+country, siren, siret, tva, color). update_client() rewrites/removes/appends individual
 key lines in place, keeping every other line untouched. uid is never
 rewritten here -- it's the filename itself, and projects/ and wiring/ files
 reference it, so renaming would require updating every reference.
@@ -21,7 +21,7 @@ import re
 from modules.path import Path
 from packages.database.database import DatabaseType
 
-EDITABLE_KEYS = ["name", "address", "creditor", "country", "tva", "color"]
+EDITABLE_KEYS = ["name", "address", "creditor", "country", "siren", "siret", "tva", "color"]
 
 # same categorical palette used elsewhere for auto-assigned colors (see
 # view_billing.py's pie chart) -- picked from first, falling back to a
@@ -88,9 +88,34 @@ def _set_key(lines, key, value):
         lines.append(f"{key}:{value}")
 
 
-def update_client(uid, name, address, creditor="", country="", tva="", color=""):
+def _normalize_siren(siren):
+    """SIREN with spaces removed; raises ValueError unless empty or 9 digits."""
+    siren = re.sub(r"\s", "", siren or "")
+    if siren and not re.fullmatch(r"\d{9}", siren):
+        raise ValueError(f"SIREN invalide (9 chiffres attendus) : {siren!r}")
+    return siren
+
+
+def _normalize_siret(siret):
+    """SIRET with spaces removed; raises ValueError unless empty or 14 digits."""
+    siret = re.sub(r"\s", "", siret or "")
+    if siret and not re.fullmatch(r"\d{14}", siret):
+        raise ValueError(f"SIRET invalide (14 chiffres attendus) : {siret!r}")
+    return siret
+
+
+def _normalize_ids(siren, siret):
+    """(siren, siret) normalized; raises ValueError if either is malformed or
+    the SIRET doesn't start with the SIREN."""
+    siren, siret = _normalize_siren(siren), _normalize_siret(siret)
+    if siren and siret and not siret.startswith(siren):
+        raise ValueError("le SIRET doit commencer par le SIREN")
+    return siren, siret
+
+
+def update_client(uid, name, address, creditor="", country="", siren="", siret="", tva="", color=""):
     """Update an existing client's editable fields. name/address are
-    required; creditor/country/tva/color are optional (blank clears them)."""
+    required; creditor/country/siren/siret/tva/color are optional (blank clears them)."""
     path = client_file_path(uid)
     if not os.path.isfile(path):
         return {"ok": False, "error": "client introuvable"}
@@ -103,6 +128,11 @@ def update_client(uid, name, address, creditor="", country="", tva="", color="")
     if not address:
         return {"ok": False, "error": "l'adresse est requise"}
 
+    try:
+        siren, siret = _normalize_ids(siren, siret)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+
     color = (color or "").strip() or _random_unused_color(exclude_uid=uid)
 
     lines = _read_lines(path)
@@ -110,6 +140,8 @@ def update_client(uid, name, address, creditor="", country="", tva="", color="")
     _set_key(lines, "address", address)
     _set_key(lines, "creditor", creditor)
     _set_key(lines, "country", country)
+    _set_key(lines, "siren", siren)
+    _set_key(lines, "siret", siret)
     _set_key(lines, "tva", tva)
     _set_key(lines, "color", color)
 
@@ -117,7 +149,7 @@ def update_client(uid, name, address, creditor="", country="", tva="", color="")
     return {"ok": True}
 
 
-def add_client(uid, name, address, creditor="", country="", tva="", color=""):
+def add_client(uid, name, address, creditor="", country="", siren="", siret="", tva="", color=""):
     """Create a new database/clients/{uid}.cli file. Fails if uid is empty,
     invalid, or a client with that uid already exists."""
     uid = (uid or "").strip()
@@ -136,10 +168,15 @@ def add_client(uid, name, address, creditor="", country="", tva="", color=""):
     if os.path.isfile(path):
         return {"ok": False, "error": f"un client {uid!r} existe déjà"}
 
+    try:
+        siren, siret = _normalize_ids(siren, siret)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+
     color = (color or "").strip() or _random_unused_color()
 
     lines = [f"uid:{uid}", f"name:{name}", f"address:{address}"]
-    for key, value in (("creditor", creditor), ("country", country), ("tva", tva)):
+    for key, value in (("creditor", creditor), ("country", country), ("siren", siren), ("siret", siret), ("tva", tva)):
         value = (value or "").strip()
         if value:
             lines.append(f"{key}:{value}")

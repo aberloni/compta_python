@@ -112,3 +112,15 @@ Simple list of changes, grouped by day.
 - The tooltip on the "auto refresh" button now explains what the switch does in each position (fresh but slower, or fast but possibly out of date) and that it turns back on when the app restarts.
 - Added a save button at the bottom of the side menu, next to the restart button, that makes a backup of all the data from any page (same as "Sauvegarder maintenant" on the Sauvegarde page).
 - On the Virements page, one bank transfer can now be linked to several invoices (a "+" button adds another invoice). The amount is shared between them in the order given: each invoice gets what it still owes, the last one gets the rest. All the pages (billing, TVA, quarters) take this into account.
+
+## 2026-11-17
+- Noted in the electronic invoicing notes that the app will produce the electronic invoices itself, and the official platform will only be used to send them.
+- Clients can now have a SIREN number: it can be filled in on the Clients page (when editing or adding a client) and is shown on the invoice under the client's address.
+- Added a "Digital" page for mandatory electronic invoicing: for each invoice, the app builds the electronic version (Factur-X) itself, can have it checked by the approved platform SUPER PDP, then send it to the client through that platform and follow its status.
+- The connection details for SUPER PDP are kept in a local file that is never shared or included in backups.
+- Each client on the Clients page now has a "Source" button that opens that client's data file in the default editor.
+- The Clients page now has the SIREN and the end of the SIRET side by side on one line: you type the 9 SIREN digits, then only the last 5 digits of the SIRET, and the full SIRET is put together automatically. Saving is refused if the SIREN isn't 9 digits, the SIRET isn't 14 digits, or the SIRET doesn't start with the SIREN (spaces are ignored). A client with only a SIRET on file now shows its SIREN (the first 9 digits) on its invoices.
+- Each client on the Clients page now has an "Annuaire" button next to the SIREN that opens the official French company directory, already searching for that client's name, to find its SIREN.
+- On the Clients page, the postal code and the city are now two separate fields side by side. For older addresses typed on a single line, the postal code and city are picked out automatically so you only have to check them; the saved address keeps the same format.
+- Rewrote the electronic invoicing notes: they now explain how the app builds the electronic invoices, what information to fill in, how the Digital page works, and what is not handled yet, followed by the rules of the reform.
+- Added notes on electronic invoicing for clients in other EU countries (such as Belgium): what applies now, what changes in 2027, and the European rules expected in 2030.

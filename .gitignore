@@ -8,3 +8,5 @@ externals/
 
 runtime/backup_folders.conf
 runtime/backup_state.conf
+runtime/superpdp.conf
+run.lnk

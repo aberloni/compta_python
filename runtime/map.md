@@ -23,6 +23,7 @@
 | `view_bills_edit.py` | Édition des factures (dates, ajout, PDF à la demande) |
 | `view_clients.py` | Édition des clients |
 | `view_backups.py` | Sauvegarde : export / import de la base (zip) et dossiers de copie |
+| `view_digital.py` | Digital : facturation électronique — Factur-X généré par l'app, envoyé à la plateforme agréée SUPER PDP |
 
 L'app (`app_gui.py`) affiche ces pages dans une fenêtre et branche leurs boutons.
 
@@ -43,3 +44,4 @@ L'app (`app_gui.py`) affiche ces pages dans une fenêtre et branche leurs bouton
 | `tools/routine_tasks.py` | Pré-génère les fichiers de tâches d'une année entière (à lancer à la main) |
 | `tools/calendar_export.py` | Import des tâches depuis Google Agenda (utilisé par la page Calendrier) |
 | `tools/bill_editor.py`, `client_editor.py`, `wire_editor.py`, `bill_pdf.py` | Écriture des fichiers factures / clients / virements et PDF à la demande (utilisés par l'app) |
+| `tools/einvoice.py` | Factur-X (XML CII EN 16931 + PDF/A-3) et envoi à SUPER PDP via `modules/superpdp.py` (utilisé par la page Digital) |

@@ -335,6 +335,28 @@ class Api:
             return {"ok": False, "error": f"fichier introuvable : {os.path.basename(path)}"}
         return _open_data_file(path, "")
 
+    def open_client_file(self, client_uid):
+        """Open database/clients/{client_uid}.cli in the OS default editor --
+        called by the Clients page's "Source" button. Never creates it."""
+        if not re.fullmatch(r"[\w-]+", client_uid or ""):
+            return {"ok": False, "error": f"client invalide : {client_uid}"}
+        from tools.client_editor import client_file_path
+        path = client_file_path(client_uid)
+        if not os.path.isfile(path):
+            return {"ok": False, "error": f"fichier introuvable : {os.path.basename(path)}"}
+        return _open_data_file(path, "")
+
+    def open_company_directory(self, name):
+        """Open annuaire-entreprises.data.gouv.fr searching for `name` in the
+        OS default browser -- called by the Clients page's "Annuaire" button,
+        to look up a client's SIREN/SIRET."""
+        import urllib.parse
+        import webbrowser
+        url = "https://annuaire-entreprises.data.gouv.fr/rechercher?terme=" + urllib.parse.quote_plus((name or "").strip())
+        print(f"→ annuaire — {url}")
+        webbrowser.open(url)
+        return {"ok": True}
+
     def import_calendar_entry(self, ym, date_str, uid, fraction, replace=False):
         """Write one resolved calendar row into database/tasks/{ym}.task —
         called by the Calendrier page's per-row and "Importer tout" buttons.
@@ -424,26 +446,26 @@ class Api:
         print("✓ associate wire" if result.get("ok") else f"✗ associate wire — {result.get('error')}")
         return result
 
-    def update_client(self, uid, name, address, creditor="", country="", tva="", color=""):
+    def update_client(self, uid, name, address, creditor="", country="", siren="", siret="", tva="", color=""):
         """Update one client's info -- called by the Clients page's per-row
         "Enregistrer" button."""
         print(f"→ update client {uid}")
         try:
             from tools.client_editor import update_client
-            result = update_client(uid, name, address, creditor, country, tva, color)
+            result = update_client(uid, name, address, creditor, country, siren, siret, tva, color)
         except Exception as e:
             print(f"✗ update client — {e}")
             return {"ok": False, "error": str(e)}
         print("✓ update client" if result.get("ok") else f"✗ update client — {result.get('error')}")
         return result
 
-    def add_client(self, uid, name, address, creditor="", country="", tva="", color=""):
+    def add_client(self, uid, name, address, creditor="", country="", siren="", siret="", tva="", color=""):
         """Create a new client -- called by the Clients page's "Ajouter un
         client" form."""
         print(f"→ add client {uid}")
         try:
             from tools.client_editor import add_client
-            result = add_client(uid, name, address, creditor, country, tva, color)
+            result = add_client(uid, name, address, creditor, country, siren, siret, tva, color)
         except Exception as e:
             print(f"✗ add client — {e}")
             return {"ok": False, "error": str(e)}
@@ -468,6 +490,54 @@ class Api:
         else:
             print(f"✗ generate pdf — {result.get('error')}")
         return result
+
+    # ─── Digital page: facturation électronique (SUPER PDP) ─────────────────
+    # The Factur-X is built in the app (tools/einvoice.py); SUPER PDP
+    # (modules/superpdp.py) only transmits it, validates it and reports status.
+
+    def digital_check_connection(self):
+        print("→ digital: check connection")
+        from tools.einvoice import check_connection
+        result = check_connection()
+        print(f"✓ digital: {result.get('name')} ({result.get('env')})" if result.get("ok") else f"✗ digital — {result.get('error')}")
+        return result
+
+    def digital_check_bill(self, project_uid, bill_uid):
+        """Build the Factur-X + get the validation report, nothing is sent."""
+        print(f"→ digital: check {project_uid}/{bill_uid}")
+        from tools.einvoice import check_bill
+        result = check_bill(project_uid, bill_uid)
+        print(f"✓ digital: {result.get('path')} valid={result.get('valid')}" if result.get("ok") else f"✗ digital — {result.get('error')}")
+        return result
+
+    def digital_send_bill(self, project_uid, bill_uid):
+        """Build, validate and send one bill (the page confirms first)."""
+        print(f"→ digital: send {project_uid}/{bill_uid}")
+        from tools.einvoice import send_bill
+        result = send_bill(project_uid, bill_uid)
+        print(f"✓ digital: sent, id {result.get('id')}" if result.get("ok") else f"✗ digital — {result.get('error')}")
+        return result
+
+    def digital_refresh_statuses(self):
+        print("→ digital: refresh statuses")
+        from tools.einvoice import refresh_statuses
+        result = refresh_statuses()
+        print(f"✓ digital: {result.get('count')} statut(s)" if result.get("ok") else f"✗ digital — {result.get('error')}")
+        return result
+
+    def digital_open_conf(self):
+        """Open runtime/superpdp.conf (API credentials, gitignored), creating
+        it with empty keys first if needed."""
+        from modules import superpdp
+        return _open_data_file(superpdp.ensure_conf_file(), "")
+
+    def digital_open_folder(self):
+        """Open exports/digital/ (generated Factur-X files)."""
+        from tools.einvoice import export_dir
+        folder = export_dir()
+        os.makedirs(folder, exist_ok=True)
+        if hasattr(os, "startfile"):
+            os.startfile(os.path.normpath(folder))
 
     def restart(self):
         """Close this window and relaunch the app in a new process. Runs the

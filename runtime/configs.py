@@ -18,6 +18,7 @@ DB_EXTENSIONS = {
     "wiring":    ".wire",
     "tva":       ".tva",
     "urssaf":    ".urssaf",
+    "digital":   ".digital",
 }
 
 # ─── settings ─────────────────────────────────────────────────────────────────

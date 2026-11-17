@@ -45,6 +45,7 @@ PAGES = [
     ("clients.html",        "Clients",         "view_clients.py",       True),
     ("bills_edit.html",     "Éditer factures", "view_bills_edit.py",    True),
     ("wiring.html",         "Virements",       "view_wiring.py",        True),
+    ("digital.html",        "Digital",         "view_digital.py",       True),
     ("backups.html",        "Sauvegarde",      "view_backups.py",       True),
 ]
 
