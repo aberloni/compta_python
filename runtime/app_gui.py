@@ -56,6 +56,12 @@ def _run_script(script_name):
     return error
 
 
+def _is_future_day(day_date):
+    """True for a day after today -- the calendar import never brings in
+    days that haven't been worked yet (rest of this month, later months)."""
+    return day_date > datetime.now().date()
+
+
 def _open_data_file(path, header):
     """Open one database/ text file in the OS default editor, creating it
     with `header` as its only content first if it doesn't exist yet."""
@@ -256,7 +262,9 @@ class Api:
             if uid:
                 seen.add((event_date.day, uid))
                 existing_fraction = existing_entries.get((event_date.day, uid))
-                if existing_fraction is None:
+                if _is_future_day(event_date):
+                    local = "future"   # not worked yet: shown, never imported
+                elif existing_fraction is None:
                     local = "new"
                 elif abs(existing_fraction - fraction) < 1e-9:
                     local = "match"
@@ -366,6 +374,11 @@ class Api:
         first). Several projects can share the same day without conflict."""
         if not uid:
             return {"ok": False, "error": "aucun projet résolu"}
+        try:
+            if _is_future_day(datetime.strptime(date_str, "%Y-%m-%d").date()):
+                return {"ok": False, "error": f"jour futur, non importé : {date_str}"}
+        except ValueError:
+            return {"ok": False, "error": f"date invalide : {date_str}"}
         print(f"→ import calendar entry {date_str} → {uid} ({fraction}){' [replace]' if replace else ''}")
         try:
             from tools.calendar_export import write_task_entry

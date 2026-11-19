@@ -8,8 +8,10 @@ Calendrier page's "Importer" buttons (see app_gui.py).
 
 Calendar convention expected:
     Project              -> full day (1) on that project
-    Project, 0.5          -> half day on that project
-    Project, 0            -> worked but excluded from billing (len 0)
+    Project(0,5)          -> half day on that project (decimal comma or dot)
+    Project(0)            -> worked but excluded from billing (len 0)
+    Project, 0.5          -> old syntax, still accepted
+    !Project(0,5)         -> already paid: imported as 0, not billed again (time kept for info only)
     off                   -> non-billable day, written as-is to the .task file
 
 Setup:
@@ -61,6 +63,7 @@ ALL_DAY_ONLY = True
 # where the word describes a [0,1] time value instead of a plain number/ratio
 FRACTION_LABELS = {
     "preshot": 1.0,
+    "off": 0.0,     # 'merlies(OFF)' / 'merlies OFF' -> 0 (a title that is only 'off' stays the off uid)
 }
 
 WEEKDAY_FR = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
@@ -104,12 +107,46 @@ def parse_fraction(token):
     return None
 
 
+PAREN_FRACTION_RE = re.compile(r"^(.*?)\s*\(([^()]*)\)\s*$")
+
+
+def parse_paren_fraction(raw_title):
+    """'merlies(0,5)' / 'merlies (0.5)' / 'merlies(1/2)' -> ('merlies', 0.5).
+    None if the title doesn't end with a parenthesized fraction in [0, 1]
+    (e.g. 'roi (radio france)' stays a plain label)."""
+    m = PAREN_FRACTION_RE.match(raw_title.strip())
+    if not m or not m.group(1).strip():
+        return None
+    token = m.group(2).strip().replace(",", ".")
+    fraction = parse_fraction(token)
+    if fraction is None:
+        try:
+            fraction = float(token)
+        except ValueError:
+            return None
+    if not 0 <= fraction <= 1:
+        return None
+    return m.group(1).strip(), fraction
+
+
 def parse_title(raw_title):
     """
     'merlies' -> ('merlies', 1.0)
+    'merlies(0,5)' or 'merlies (0.5)' -> ('merlies', 0.5) (current syntax, decimal comma)
     '1/2 merlies' or 'merlies 1/2' -> ('merlies', 0.5)   (fraction token can be a prefix or suffix)
-    'merlies, 0.5' -> ('merlies', 0.5)                    (comma form also accepted)
+    'merlies, 0.5' -> ('merlies', 0.5)                    (old comma form, still accepted)
+    '!merlies(0,5)' -> ('merlies', 0.0)                   ('!' = already paid: imported as 0 so it isn't
+                                                           billed again, the time in brackets is only informative)
     """
+    stripped = raw_title.strip()
+    if stripped.startswith("!"):
+        label, _ = parse_title(stripped[1:])
+        return label, 0.0
+    if raw_title.strip().lower() in SPECIAL_UIDS:
+        return raw_title.strip(), 1.0
+    paren = parse_paren_fraction(raw_title)
+    if paren is not None:
+        return paren
     tokens = raw_title.replace(",", " ").split()
     fraction = 1.0
     label_tokens = []
@@ -230,12 +267,17 @@ def match_label(label, uid_map, name_map):
         return name_map[key], "name"
 
     # soft match: a known uid appears as a whole word inside a noisier title
-    # (e.g. "montage CONVATEC", "roi (radio france)") -- needs manual confirmation
-    for uid_lower, uid in uid_map.items():
-        if re.search(rf"\b{re.escape(uid_lower)}\b", key):
-            return uid, "fuzzy?"
+    # (e.g. "montage CONVATEC", "roi (radio france)") -- needs manual confirmation.
+    # '-' counts as part of the word, so "roi" doesn't match inside
+    # "roi-immersif"; if several uids match, the longest (closest) one wins.
+    candidates = [
+        uid for uid_lower, uid in uid_map.items()
+        if re.search(rf"(?<![\w-]){re.escape(uid_lower)}(?![\w-])", key)
+    ]
+    if candidates:
+        return max(candidates, key=len), "fuzzy?"
 
-    return None, "UNMATCHED"
+    return None, "UNKNOWN"
 
 
 def resolve_event(raw_title, uid_map, name_map):
@@ -396,14 +438,14 @@ def main():
     unmatched = 0
     for event_date, raw_title in events:
         uid, fraction, status = resolve_event(raw_title, uid_map, name_map)
-        if status == "UNMATCHED":
+        if status == "UNKNOWN":
             unmatched += 1
         weekday = WEEKDAY_FR[event_date.weekday()]
         date_str = f"{event_date} ({weekday})"
         print(f"{date_str:16}  {raw_title[:30]:30}  {(uid or '???'):12}  {fraction:<5}  {status}")
 
     print("-" * 80)
-    print(f"{len(events)} event(s), {unmatched} unmatched\n")
+    print(f"{len(events)} event(s), {unmatched} unknown\n")
 
 
 if __name__ == "__main__":

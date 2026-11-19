@@ -124,3 +124,13 @@ Simple list of changes, grouped by day.
 - On the Clients page, the postal code and the city are now two separate fields side by side. For older addresses typed on a single line, the postal code and city are picked out automatically so you only have to check them; the saved address keeps the same format.
 - Rewrote the electronic invoicing notes: they now explain how the app builds the electronic invoices, what information to fill in, how the Digital page works, and what is not handled yet, followed by the rules of the reform.
 - Added notes on electronic invoicing for clients in other EU countries (such as Belgium): what applies now, what changes in 2027, and the European rules expected in 2030.
+
+## 2026-11-19
+
+- Added a Projets page: a summary table of every project (client, rate, days worked and billed, days not yet billed, amount billed, received and still owed), plus one tab per project with its settings, its invoices and their payment status, and its days per year.
+- The calendar import now understands the new way of writing a day fraction in event titles, like "project(0,5)" for a half day, while still accepting the old way ("project, 0.5").
+- In calendar event titles, writing "OFF" next to a project (like "project(OFF)" or "project OFF") now counts that day as 0 for the project. An event titled only "off" is still a day off, as before.
+- The calendar import no longer confuses projects whose names start the same way (like "roi" and "roi-immersif"): it now picks the project whose name matches exactly, or the closest one.
+- On the Calendrier page, events whose project isn't recognised are now marked "UNKNOWN" (and counted as "inconnu(s)") instead of "UNMATCHED".
+- The calendar import no longer brings in days later than today (the rest of the current month or later months): they are shown greyed out as "À venir" and can't be imported.
+- In calendar event titles, a "!" at the start (like "!project(0,5)") marks a day that is already paid: it is imported as 0 so it isn't billed again, the time in brackets being kept only as information in the calendar.

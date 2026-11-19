@@ -42,6 +42,7 @@ PAGES = [
     ("trimester.html",      "Trimestres",      "view_trimester.py",     False),
     ("tasks.html",          "Tâches",          "view_tasks.py",         False),
     ("tasks_calendar.html", "Calendrier",      "view_tasks_calendar.py", False),
+    ("projects.html",       "Projets",         "view_projects.py",      False),
     ("clients.html",        "Clients",         "view_clients.py",       True),
     ("bills_edit.html",     "Éditer factures", "view_bills_edit.py",    True),
     ("wiring.html",         "Virements",       "view_wiring.py",        True),

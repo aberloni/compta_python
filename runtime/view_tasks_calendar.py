@@ -249,7 +249,8 @@ let showIgnored = false;
 
 function rowClass(r) {
   if (r.local === 'missing') return 'cal-local-missing';
-  if (r.status === 'UNMATCHED') return 'cal-unmatched';
+  if (r.local === 'future') return 'cal-future';
+  if (r.status === 'UNKNOWN') return 'cal-unmatched';
   if (r.status === 'ignored') return 'cal-ignored';
   if (r.local === 'conflict') return 'cal-local-conflict';
   if (r.local === 'match') return 'cal-local-match';
@@ -270,6 +271,7 @@ function toggleShowIgnored() {
 function rowAction(r, i) {
   if (r.local === 'missing') return '<span class="cal-missing-label">Absent du calendrier</span>';
   if (r.local === 'match') return '<span class="cal-local-label">Déjà présent</span>';
+  if (r.local === 'future') return '<span class="cal-local-label">À venir</span>';
   if (r.local === 'conflict') return '<button class="cal-row-import cal-row-replace" onclick="return importRow(' + i + ')">Remplacer</button>';
   if (r.local === 'new') return '<button class="cal-row-import" onclick="return importRow(' + i + ')">Importer</button>';
   return '';
@@ -336,9 +338,9 @@ function loadCalendarPreview() {
     lastRows = result.rows;
     renderRows();
     updateImportAllVisibility();
-    const unmatched = lastRows.filter(function (r) { return r.status === 'UNMATCHED'; }).length;
+    const unmatched = lastRows.filter(function (r) { return r.status === 'UNKNOWN'; }).length;
     const missing = lastRows.filter(function (r) { return r.local === 'missing'; }).length;
-    let text = (lastRows.length - missing) + ' événement(s) — ' + unmatched + ' non résolu(s)';
+    let text = (lastRows.length - missing) + ' événement(s) — ' + unmatched + ' inconnu(s)';
     if (missing) text += ' — ' + missing + ' entrée(s) locale(s) absente(s) du calendrier';
     summary.textContent = text;
   });
@@ -507,6 +509,7 @@ page_style = """
   tr.cal-unmatched td { background: #fdecea; }
   tr.cal-fuzzy td { background: #fff8e1; }
   tr.cal-ignored td { color: #bbb; }
+  tr.cal-future td { color: #bbb; font-style: italic; }
   tr.cal-local-match td { background: #eaf7ea; }
   tr.cal-local-conflict td { background: #fff1e0; }
   tr.cal-local-missing td { background: #e8f1fb; }

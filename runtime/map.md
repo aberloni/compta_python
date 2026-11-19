@@ -21,6 +21,7 @@
 | `view_tasks.py` | Jours travaillés par mois (tous projets), ou détail facturé / non facturé par projet |
 | `view_tasks_calendar.py` | Calendrier mensuel avec une barre de couleur par jour montrant le temps passé par projet |
 | `view_bills_edit.py` | Édition des factures (dates, ajout, PDF à la demande) |
+| `view_projects.py` | Vue d'ensemble des projets : client, taux, jours travaillés / facturés, factures et paiements |
 | `view_clients.py` | Édition des clients |
 | `view_backups.py` | Sauvegarde : export / import de la base (zip) et dossiers de copie |
 | `view_digital.py` | Digital : facturation électronique — Factur-X généré par l'app, envoyé à la plateforme agréée SUPER PDP |

@@ -41,6 +41,7 @@ CARDS = [
     ("trimester.html",      "Trimestres",      "Charges sociales (cotisations, CFP, versement libératoire) par trimestre."),
     ("tasks.html",          "Tâches",          "Jours travaillés par mois (tous projets), ou détail facturé/non-facturé par projet."),
     ("tasks_calendar.html", "Calendrier",      "Vue calendrier mensuelle des tâches et congés."),
+    ("projects.html",       "Projets",         "Chaque projet : client, taux, jours travaillés / facturés, factures et paiements."),
     ("wiring.html",         "Virements",       "Virements reçus et rapprochement avec les factures émises."),
     ("digital.html",        "Digital",         "Facturation électronique : envoi des factures (Factur-X) à la plateforme agréée SUPER PDP."),
 ]
